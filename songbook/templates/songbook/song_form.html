@@ -1,0 +1,200 @@
+
+{% extends "songbook/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<style>
+    body {
+        padding-top: 70px; /* Adjust based on your navbar height */
+    }
+
+    .cm-curly {
+        color: red;
+    }
+</style>
+    <div class="container">
+        <div class="row">
+            <!-- Left Column: Form -->
+            <div class="col-md-8">                
+                <div class="content-section">
+                    <form method="POST" id="song-form">
+                        {% csrf_token %}
+                        <fieldset class="form-group">
+                            <legend class="border-bottom mb-4">
+                                {% if form.instance.pk %}
+                                    Edit Song
+                                {% else %}
+                                    New Song
+                                {% endif %}
+                            </legend>
+
+                            <!-- Render non-accordion fields -->
+                            {% for field in form %}
+                                {% if field.name != 'metadata' and field.name != 'lyrics_with_chords' %}
+                                    {{ field|as_crispy_field }}
+                                {% endif %}
+                            {% endfor %}
+
+                        </fieldset>
+
+                        <!-- Bootstrap Accordion for Metadata and Lyrics with Chords -->
+                        <div class="accordion" id="formAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingMetadata">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMetadata" aria-expanded="false" aria-controls="collapseMetadata">
+                                        Metadata and Lyrics with Chords
+                                    </button>
+                                </h2>
+                                <div id="collapseMetadata" class="accordion-collapse collapse" aria-labelledby="headingMetadata" data-bs-parent="#formAccordion">
+                                    <div class="accordion-body">
+                                        <!-- Metadata Field -->
+                                        <div id="metadataField">
+                                            {{ form.metadata|as_crispy_field }}
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <button class="btn btn-outline-info" type="submit">
+                                {% if form.instance.pk %}
+                                    Update
+                                {% else %}
+                                    Create
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+         <!-- Right Column: Guide -->
+        <div class="col-md-4">
+            {% verbatim %}
+            <div class="content-section border rounded p-3 bg-light">
+                <h5>Guide</h5>
+                <p>Utilisez le formulaire à la gauche pour créer ou modifier vos contributions. Voici des conseils:</p>
+                <p>Si vous utilisez <a href="https://www.topaccords.com/">www.topaccords.com</a> pour ajouter une chanson, utiliser les touches Ctrl+Alt+R pour remplacer les {{ et }} par [ et ] </p>
+                <p>Voici des raccourcis qui pourraient bien servir:</p>
+                <ul>
+                    <li><strong>CTRL-Z</strong> - Undo</li>
+                    <li><strong>CTRL-Y</strong> - Redo</li>
+                    <li><strong>CTRL-F</strong> - Find</li>
+                </ul>
+                <p>Voici les balises à utiliser pour identifier les chansons:</p>
+                <ul>
+                    <li>{titre:}</li>
+                    <li>{artist:}
+                    <li>{youtube:}
+                    <li>{songwriter:}
+                    <li>{recording:}
+                    <li>{year:}
+                    <li>{1stnote:}
+                    <li>{timeSignature:}
+                </ul>
+                <p>Pour des commentaires ou des suggestion, veuillez communiquer avec gaulindm@gmail.com.</p>
+            </div>
+            {% endverbatim %}
+        </div>   
+    <!-- Include Bootstrap CSS -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- Include CodeMirror CSS -->
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/codemirror@5.65.10/lib/codemirror.css"
+    >
+
+    <!-- Include CodeMirror JS -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/codemirror@5.65.10/lib/codemirror.js"
+    ></script>
+
+    <!-- Include CodeMirror Markdown Mode -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/codemirror@5.65.10/mode/markdown/markdown.js"
+    ></script>
+
+    <!-- Include Bootstrap JS -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"
+    ></script>
+
+    <!-- Include CodeMirror Addons for Auto-closing Brackets and Search/Replace -->
+    <script
+    src="https://cdn.jsdelivr.net/npm/codemirror@5.65.10/addon/edit/closebrackets.js"
+    ></script>
+    <script
+    src="https://cdn.jsdelivr.net/npm/codemirror@5.65.10/addon/search/search.js"
+    ></script>
+    <script
+    src="https://cdn.jsdelivr.net/npm/codemirror@5.65.10/addon/search/searchcursor.js"
+    ></script>
+    <script
+    src="https://cdn.jsdelivr.net/npm/codemirror@5.65.10/addon/dialog/dialog.js"
+    ></script>
+   <!-- Include the CodeMirror Dialog CSS correctly -->
+<link
+rel="stylesheet"
+href="https://cdn.jsdelivr.net/npm/codemirror@5.65.10/addon/dialog/dialog.css"
+/>
+    <script>
+        // Initialize CodeMirror for the songChordPro field
+        var editor = CodeMirror.fromTextArea(document.getElementById("id_songChordPro"), {
+            mode: "markdown",
+            lineNumbers: true,
+            lineWrapping: true,
+            theme: "default",
+            autoCloseBrackets: true, // Enable auto-closing brackets and braces
+            extraKeys: {
+            "Ctrl-F": "find", // Search shortcut
+            "Ctrl-H": "replace", // Replace shortcut
+            "Ctrl-Alt-R": function(cm) { // Custom shortcut for replacing '{{' and '}}' with '[' and ']'
+                let doc = cm.getDoc();
+                cm.operation(function() {
+                    // Replace all occurrences of '{{' with '['
+                    let cursorOpen = doc.getSearchCursor("{{");
+                    while (cursorOpen.findNext()) {
+                        doc.replaceRange("[", cursorOpen.from(), {line: cursorOpen.from().line, ch: cursorOpen.from().ch + 2});
+                    }
+                    
+                    // Replace all occurrences of '}}' with ']'
+                    let cursorClose = doc.getSearchCursor("}}");
+                    while (cursorClose.findNext()) {
+                        doc.replaceRange("]", cursorClose.from(), {line: cursorClose.from().line, ch: cursorClose.from().ch + 2});
+                    }
+                });
+                alert("Replaced all instances double curly braces");
+            },
+            "Ctrl-Z": function(cm) { cm.undo(); },
+            "Ctrl-Y": function(cm) { cm.redo(); },
+            "Cmd-Z": function(cm) { cm.undo(); }, // macOS undo
+            "Cmd-Shift-Z": function(cm) { cm.redo(); } // macOS redo
+        },
+        viewportMargin: Infinity, // Ensure the editor can grow dynamically
+        height: "auto", // Let it grow naturally
+        });
+
+
+
+
+    // Adjust initial height to be taller
+    editor.setSize(null, "500px"); // Set the height to 500px or adjust as needed
+        
+        // Sync CodeMirror content with the textarea on form submission
+        document.getElementById("song-form").addEventListener("submit", function(event) {
+            // Update the textarea value with the editor content
+            var textarea = document.getElementById("id_songChordPro");
+            textarea.value = editor.getValue();
+    
+            // Temporarily remove the 'required' attribute and validation
+            textarea.removeAttribute("required");
+        });
+    
+        // Prevent the form from using native validation for hidden inputs
+        document.getElementById("song-form").setAttribute("novalidate", "true");
+    </script>
+{% endblock content %}
