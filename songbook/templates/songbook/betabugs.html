@@ -1,61 +1,104 @@
-
 {% extends "songbook/base.html" %}
 {% block content %}
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background: #ffcc00;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+            font-size: 1.3em;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        main {
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.8em;
+            color: #cc3300;
+        }
+        h2 {
+            color: #ff6600;
+            border-bottom: 2px solid #ff6600;
+            padding-bottom: 5px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background: #ffeb99;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 1.2em;
+        }
+        .bugs {
+            background-color: #ffdddd;
+            padding: 10px;
+            border-left: 5px solid #cc3300;
+            margin-bottom: 20px;
+        }
+        .improvements {
+            background-color: #ddffdd;
+            padding: 10px;
+            border-left: 5px solid #009933;
+        }
+        p {
+            font-size: 1.2em;
+            text-align: center;
+        }
+        .email {
+            font-weight: bold;
+            color: #0066cc;
+        }
+    </style>
+</head>
 <body>
     <header>
         <h1>Notice: Site Under Development</h1>
-        <p>Welcome to my application! Please note that the site is still under active development, and there are a few known bugs that I’m currently working to resolve. </p>
-        <p>The good news is that these issues are minor and are unlikely to affect your experience on the site. However, if you do encounter anything unusual, I’d love to hear from you! Your feedback is incredibly valuable and helps me improve. </p>
+        <p>Welcome to my application! Please note that the site is still under active development, and there are a few known bugs that I’m currently working to resolve.</p>
+        <p>The good news is that these issues are minor and are unlikely to affect your experience on the site. However, if you do encounter anything unusual, I’d love to hear from you! Your feedback is incredibly valuable and helps me improve.</p>
     </header>
     <main>
-        <section>
-            <h2>Known bugs :</h2>
+        <section class="bugs">
+            <h2>Known Bugs:</h2>
             <ul>
-                <li>
-                    <strong>Vérifier les accords</strong> : Même l'I.A. peut se tromper (et moi aussi)
-                </li>
-                <li>
-                    <strong>Génération des diagramme d'accords après la transposition</strong> : L'application ne fait pas la transposition des diagramme d'accord.
-                </li>
-                <li>
-                    <strong></strong> : Accorder permission d'admin pour les enseignants, entraineurs, chef de clubs.
-                </li>
-
-                
-              
+                <li><strong>Verify Chords:</strong> Even AI can make mistakes (and so can I!).</li>
+                <li><strong>Chord Diagram Generation After Transposition:</strong> The application does not yet transpose chord diagrams.</li>
+                <li><strong>Admin Permissions:</strong> Need to grant admin access to teachers, trainers, and club leaders.</li>
             </ul>
         </section>
-         <section>
-            <h2>Améliorations à venir :</h2>
+
+        <section class="improvements">
+            <h2>Upcoming Improvements:</h2>
             <ul>
-
-
-                <li>
-                    <strong>Permission pour les leaders</strong> : Accorder permission d'admin pour les enseignants, entraineurs, chef de clubs.
-                </li>
-                <li>
-                    <strong>Diagramme supplémentaire</strong> : L'ajout des differentes façons de jouer l'accord.
-                </li>
-                <li>
-                    <strong>Ajouter des vérifications des partitions</strong> : Tonalité, année, première note, auteur-compositeur, comparaison avec le clip youtube.
-                </li>
-                <li>
-                    <strong>Outil d'ajout</strong> : Améliorer l'outil d'ajout de partitions.
-                </li>
-                <li>
-                    <strong>Taggit</strong> : Améliorer l'outil de tags de chansons.
-                </li>
-                
-              
+                <li><strong>Leader Permissions:</strong> Grant admin access for teachers, trainers, and club leaders.</li>
+                <li><strong>Additional Chord Diagrams:</strong> Adding different variations for each chord.</li>
+                <li><strong>Sheet Music Verification:</strong> Checking key, year, first note, composer, and comparing with YouTube clips.</li>
+                <li><strong>Improved Upload Tool:</strong> Enhancing the process of adding new sheet music.</li>
+                <li><strong>Better Tagging System:</strong> Improving song categorization with Taggit.</li>
             </ul>
         </section>
-        <section>
-            <p>Thank you for your patience and support as I continue refining the site. If you’d like to report an issue, please email me at gaulindm@gmail.com</p>
-        </section>
 
+        <section>
+            <p>Thank you for your patience and support as I continue refining the site. If you’d like to report an issue, please email me at <span class="email">gaulindm@gmail.com</span>.</p>
+        </section>
     </main>
 </body>
-
-   
-
 {% endblock content %}
