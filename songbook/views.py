@@ -176,12 +176,6 @@ def generate_single_song_pdf(request, song_id):
     song = Song.objects.get(pk=song_id)
     user = request.user
 
-    # Fetch the user's instrument preference
-    #try:
-    #    instrument = user.userpreference.instrument
-    #except UserPreference.DoesNotExist:
-    #    instrument = 'ukulele'  # Default to ukulele if no preference is set
-
 
     # Prepare the response
     response = HttpResponse(content_type='application/pdf')
@@ -306,14 +300,14 @@ class ScoreView(DetailView):
 
 class SongCreateView(LoginRequiredMixin, CreateView):
     model = Song
-    fields = ['songTitle','songChordPro','metadata','tags']
+    fields = ['songTitle','songChordPro','metadata','tags','acknowledgement']
     def form_valid(self, form):
         form.instance.contributor = self.request.user
         return super().form_valid(form)
 
 class SongUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Song
-    fields = ['songTitle', 'songChordPro', 'lyrics_with_chords', 'metadata','tags']
+    fields = ['songTitle', 'songChordPro', 'lyrics_with_chords', 'metadata','tags','acknowledgement']
     success_url = reverse_lazy('songbook-home')  # Redirect after success
 
     def form_valid(self, form):
