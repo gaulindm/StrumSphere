@@ -1,8 +1,9 @@
 {% load static %}
 <div class="content-section">
-    {% if object.contributor == user %}<h3>Modify</h3>(must be contributor of song)<br> 
-                <a class="btn btn-secondary btn-sm-mt-1 mb-1" href ="{% url 'song-update' object.id %}">Update</a>
-                <a class="btn btn-danger btn-sm-mt-1 mb-1" href ="{% url 'song-delete' object.id %}">Delete</a>
+        {% if user.is_authenticated %}<h3>Modify</h3>(must be logged in<br> 
+    <a class="btn btn-secondary btn-sm-mt-1 mb-1" href="{% url 'song-update' score.id %}">Update</a>
+    <a class="btn btn-danger btn-sm-mt-1 mb-1" href="{% url 'song-delete' score.id %}">Delete</a>
+    
             {% endif%}
     
     
@@ -13,8 +14,8 @@
       <ul class="list-group">
         <li class="list-group-item list-group-item-heavy"><h3>Control Panel</h3>
         </li>
-        <li class="list-group-item list-group-item-heavy">Transpose    
-          <select id="transpose-select" onchange="transposeSong(this.value)">
+        <label for="transpose-select">Transpose:</label>
+        <select id="transpose-select" class="form-control">
             <option value="0">Original Key</option>
             <option value="-7">-7 semitone</option>
             <option value="-6">-6 semitone</option>
@@ -31,6 +32,8 @@
             <option value="6">+6 semitone</option>
             <option value="7">+7 semitone</option>
         </select>
+        
+        <button id="update-preview" class="btn btn-primary">Update Print Preview</button>
         </li>
         <!-- Lyrics and Chords Appearance -->
         <li class="list-group-item list-group-item-heavy">
@@ -38,15 +41,27 @@
             <div class="control-panel mt-12 d-flex flex-wrap align-items-center">
                 <!-- Font Size -->
                 <div class="me-3">
-                    <label for="fontSize" class="form-label">Font Size:</label>
-                    <select id="fontSize" onchange="updateStyle('fontSize', this.value)" class="form-control form-control-sm">
-                        <option value="12px" {% if preferences.font_size == "12px" %}selected{% endif %}>12px</option>
-                        <option value="14px" {% if preferences.font_size == "14px" %}selected{% endif %}>14px</option>
-                        <option value="16px" {% if preferences.font_size == "16px" %}selected{% endif %}>16px</option>
-                        <option value="18px" {% if preferences.font_size == "18px" %}selected{% endif %}>18px</option>
-                        <option value="20px" {% if preferences.font_size == "20px" %}selected{% endif %}>20px</option>
+                    <label for="section-select">Change Font Size For:</label>
+                    <select id="section-select" class="form-control">
+                        <option value="intro_style">Intro</option>
+                        <option value="verse_style">Verse</option>
+                        <option value="chorus_style">Chorus</option>
+                        <option value="bridge_style">Bridge</option>
+                        <option value="interlude_style">Interlude</option>
+                        <option value="outro_style">Outro</option>
                     </select>
-                </div>
+                    
+                    <label for="fontSize">Font Size:</label>
+                    <select id="fontSize" class="form-control">
+                        <option value="12px">12px</option>
+                        <option value="13px" selected>13px</option>
+                        <option value="14px">14px</option>
+                        <option value="16px">16px</option>
+                        <option value="18px">18px</option>
+                        <option value="20px">20px</option>
+                    </select>
+                    
+                    
           
                 <!-- Line Spacing -->
                 <div class="me-3">
@@ -142,3 +157,62 @@
 {% endif %}
 
 </div>
+<script>
+document.getElementById("fontSize").addEventListener("change", function() {
+    let formData = new FormData();
+    let csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    let csrfToken = csrfTokenElement ? csrfTokenElement.value : '';
+    let songId = "{{ score.id }}";  
+    let section = document.getElementById("section-select").value;  // ✅ Get selected section
+
+    formData.append("csrfmiddlewaretoken", csrfToken);
+    formData.append("song_id", songId);
+    formData.append("section", section);
+    formData.append("font_size", this.value);
+
+    fetch("/update_preferences/", {
+        method: "POST",
+        body: formData,
+        headers: {
+            "X-CSRFToken": csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "success") {
+            console.log("Font size updated!");
+
+            // Reload formatted content
+            fetch(`/format_song/{{ score.id }}/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("song-content").innerHTML = data.html;
+            });
+        }
+    })
+    .catch(error => console.error("Fetch error:", error));
+});
+
+document.getElementById("update-preview").addEventListener("click", function() {
+    let transposeValue = document.getElementById("transpose-select").value;
+    let section = document.getElementById("section-select").value;
+    let fontSize = document.getElementById("font-size").value
+
+
+
+    let pdfIframe = document.getElementById("pdf-preview");
+
+      // ✅ Update the PDF source URL with transposition, section, and font size
+      pdfIframe.src = `/preview_pdf/{{ score.id }}/?transpose=${transposeValue}&section=${section}&font_size=${fontSize}`;
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    // Fetch formatted song on page load
+    fetch(`/format_song/{{ score.id }}/`)
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById("song-content").innerHTML = data.html;
+    })
+    .catch(error => console.error("Error loading song:", error));
+});
+</script>

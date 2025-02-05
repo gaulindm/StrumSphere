@@ -6,30 +6,20 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from django.conf import settings
 from reportlab.platypus.flowables import Flowable
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, PageBreak
 import json
 import os
 import re
 from .chord_utils import load_chords, extract_used_chords, draw_footer, ChordDiagram
+from songbook.models import SongFormatting  # Use absolute import
 
-def generate_songs_pdf(response, songs, user):
-    doc = SimpleDocTemplate(
-        response,
-        pagesize=letter,
-        topMargin=2,
-        bottomMargin=80,
-        leftMargin=20,
-        rightMargin=20,
-    )
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+
+from songbook.utils.transposer import transpose_chord  # ✅ Make sure this path is correct!
+
+def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None):
+    doc = SimpleDocTemplate(response, pagesize=letter, topMargin=2, bottomMargin=80, leftMargin=20, rightMargin=20)
     styles = getSampleStyleSheet()
-    base_style = styles['BodyText']
-    chorus_style = ParagraphStyle('Chorus', parent=base_style, fontSize=13, leading=14, spaceBefore=12, spaceAfter=12, alignment=1)
-    verse_style = ParagraphStyle('Verse', parent=base_style, fontSize=13, leading=14, spaceBefore=12, spaceAfter=12)
-    intro_style = ParagraphStyle('Intro', parent=base_style, fontSize=13, leading=14, spaceBefore=12, spaceAfter=12)
-    outro_style = ParagraphStyle('Outro', parent=base_style, fontSize=13, leading=14, spaceBefore=12, spaceAfter=12)
-    bridge_style = ParagraphStyle('Bridge', parent=base_style, fontSize=13, leading=14, spaceBefore=12, spaceAfter=12, alignment=1)
-    interlude_style = ParagraphStyle('Bridge', parent=base_style, fontSize=13, leading=14, spaceBefore=12, spaceAfter=12, alignment=1)
-
+    base_style = styles["BodyText"]
     elements = []
 
 
@@ -44,6 +34,9 @@ def generate_songs_pdf(response, songs, user):
     chords = load_chords(instrument)
     used_chords = extract_used_chords(songs[0].lyrics_with_chords)  # Assuming one song for simplicity
     relevant_chords = [chord for chord in chords if chord["name"].lower() in map(str.lower, used_chords)]
+
+    # Get user formatting settings or create defaults
+    formatting, _ = SongFormatting.objects.get_or_create(user=user, song=songs[0])
 
     diagrams_to_draw = []
     for chord in relevant_chords:
@@ -104,6 +97,41 @@ def generate_songs_pdf(response, songs, user):
         spaceAfter=6,  # Optional: Add space below the paragraph
     )
 
+    def get_style(section):
+        config = getattr(formatting, section, {})  # Get JSON formatting for section
+
+        # Get the default "BodyText" style from ReportLab
+        base_style = styles["BodyText"]
+
+        return ParagraphStyle(
+            name=section,
+            parent=base_style,  # Use base style as the parent
+            fontSize=config.get("font_size", 13),
+            textColor=config.get("font_color", "#000000"),
+            fontName=config.get("font_family", "Helvetica") 
+                if config.get("font_family", "Helvetica") in ["Helvetica", "Times-Roman", "Courier"] 
+                else "Helvetica",
+            leading=config.get("line_spacing", 1.2) * config.get("font_size", 13),
+            spaceBefore=config.get("spacing_before", 12),
+            spaceAfter=config.get("spacing_after", 12),
+            alignment={
+                "left": TA_LEFT,
+                "center": TA_CENTER,
+                "right": TA_RIGHT
+            }.get(config.get("alignment", "left"), TA_LEFT)
+        )
+
+
+
+    # Apply user-defined styles (fallback to defaults)
+    intro_style = get_style("intro")
+    verse_style = get_style("verse")
+    chorus_style = get_style("chorus")
+    bridge_style = get_style("bridge")
+    interlude_style = get_style("interlude")
+    outro_style = get_style("outro")
+
+
     for song in songs:
         #preferences = user.userpreference
         instrument = user.userpreference.instrument
@@ -112,9 +140,6 @@ def generate_songs_pdf(response, songs, user):
         chords = load_chords(instrument)
         used_chords = extract_used_chords(song.lyrics_with_chords)
         relevant_chords = [chord for chord in chords if chord["name"].lower() in map(str.lower, used_chords)]
-
-  
-
 
 
 
@@ -125,17 +150,6 @@ def generate_songs_pdf(response, songs, user):
         songwriter = metadata.get('songwriter', 'Unknown')
         year = metadata.get('year', 'Unknown')
         recording = metadata.get('recording', 'Unknown')
-
-        #song = type('Song', (object,), {'songTitle': "Hey, Good Lookin'"})
-
-       # metadata_text = f"""
-       # <b>Artist:</b> {metadata.get('artist', 'Unknown Artist')}<br/>
-       # <b>Album:</b> {metadata.get('album', 'Unknown')}<br/>
-       # <b>Year:</b> {metadata.get('year', 'Unknown')}<br/>
-       # <b>Chords Match YouTube Pitch:</b> {metadata.get('chords_match', 'N/A')}
-       # """
-
-
 
         recorded_by_text = f"{metadata.get('recording', 'Unknown')} recording by {metadata.get('artist', 'Unknown Artist')}"
         #if metadata.get('album', ''):
@@ -149,17 +163,8 @@ def generate_songs_pdf(response, songs, user):
                 Paragraph(f"<b>{song.songTitle or 'Untitled Song'}</b>", styles['Title']),
                 Paragraph(f"First Vocal Note: {metadata.get('1stnote', 'N/A')}", first_vocal_note_style),
             ],
-            [
-               # Paragraph(f"Tempo: {metadata.get('tempo', '')}", styles['Normal']),    Uncertain of style to adopt
-                Paragraph(f"{metadata.get('songwriter', '')}", songwriter_style),  # Ensure style is correct
-                "",
-                "",
-            ],
-            [
-                Paragraph(recorded_by_text, recording_style),
-                "",
-                "",
-            ],
+            [Paragraph(f"{metadata.get('songwriter', '')}", songwriter_style),  "","",],
+            [Paragraph(recorded_by_text, recording_style), "","",],
         ]
 
         header_table = Table(header_data, colWidths=[120, 360, 120])
@@ -183,11 +188,6 @@ def generate_songs_pdf(response, songs, user):
       # Lyrics Section with section handling
         lyrics_with_chords = song.lyrics_with_chords or []
 
-        #chorus_line_buffer = []
-        #is_chorus = False
-        #refrain_added = False
-
- 
 
         # Initialize necessary variables
         section_type = None  # Tracks active section (Chorus, Intro, Bridge, Outro)
@@ -334,7 +334,7 @@ def generate_songs_pdf(response, songs, user):
     chord_spacing = available_width / max_chords_per_row
     row_spacing = 72
 
-   # Update the doc.build section to include acknowledgements
+    # Update the doc.build section to include acknowledgements
     doc.build(
         elements,
         onFirstPage=lambda c, d: draw_footer(
@@ -350,4 +350,3 @@ def generate_songs_pdf(response, songs, user):
             acknowledgement=songs[0].acknowledgement if hasattr(songs[0], 'acknowledgement') else ''
         )
     )
-

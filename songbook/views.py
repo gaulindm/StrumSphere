@@ -15,15 +15,18 @@ from .models import Song
 from django.views import View
 from django.db. models import Prefetch
 from .parsers import parse_song_data
-from .transposer import extract_chords, calculate_steps, transpose_lyrics, detect_key
+from .utils.transposer import extract_chords, calculate_steps, transpose_lyrics, detect_key
 from unidecode import unidecode
 from django.http import HttpResponse
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.pagesizes import letter
 from django.db.models import Q  # Import Q for complex queries
 from django.views.generic import ListView
 from django.contrib.auth.decorators import login_required
-from .models import Song  # Adjust based on your models
+from .models import Song, SongFormatting  # Adjust based on your models
 from taggit.models import Tag
-from .models import Song, SongFormatting
 from songbook.utils.pdf_generator import generate_songs_pdf  # Import the utility function
 from django.http import JsonResponse
 from songbook.utils.pdf_generator import load_chords
@@ -33,11 +36,54 @@ from django.contrib.auth.decorators import login_required
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .forms import SongForm
+from .forms import SongForm, TagFilterForm
 from songbook.models import Song
 from django.utils.timezone import now
 from django.contrib.auth.models import User
 import re
+
+
+from django.http import HttpResponse
+from .utils.pdf_generator import generate_songs_pdf
+from .utils.transposer import transpose_lyrics  # Import your transposer function
+
+
+def preview_pdf(request, song_id):
+    """Generate a transposed PDF with user-defined font sizes stored in JSON fields."""
+    song = Song.objects.get(pk=song_id)
+    user = request.user
+
+    # ✅ Get or create formatting settings for the user
+    formatting, created = SongFormatting.objects.get_or_create(user=user, song=song)
+
+    # ✅ Get transpose value (default to 0)
+    transpose_value = int(request.GET.get("transpose", 0))
+
+    # ✅ Get section & font size
+    section = request.GET.get("section", "verse")  # Default to verse
+    font_size = int(request.GET.get("font_size", 14))  # Default 14px
+
+    print(f"⚡ DEBUG: Received font size update for {section}: {font_size}")  # ✅ Debugging
+
+    # ✅ Ensure the section exists in JSON
+    section_format = getattr(formatting, section, {})  # ✅ Get JSON field
+
+    print(f"🔍 BEFORE UPDATE: {section} font size = {section_format.get('font_size', 'Not Set')}")  # ✅ Debugging
+
+    # ✅ Update font size in JSON
+    section_format["font_size"] = font_size  
+    setattr(formatting, section, section_format)  # ✅ Update the section JSON field
+
+    # ✅ Force Django to detect the change in JSONField
+    formatting.save(update_fields=[section])
+
+    print(f"✅ AFTER UPDATE: {section} font size = {getattr(formatting, section).get('font_size', 'Not Set')}")  # ✅ Debugging
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{song.songTitle}_preview.pdf"'
+
+    generate_songs_pdf(response, [song], user, transpose_value, formatting)  # ✅ Pass formatting object
+    return response
 
 
 
@@ -50,10 +96,6 @@ def song_detail(request, song_id):
     return render(request, 'song_detail.html', {'song': song, 'formatting': formatting})
 
 
-
-# views.py
-
-from .forms import TagFilterForm
 
 def song_list(request):
     form = TagFilterForm(request.POST or None)
@@ -71,21 +113,9 @@ def song_list(request):
 
 
 
-
-
-# views.py
-from django.http import HttpResponse
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet
-
-
-
 import logging
 
 logger = logging.getLogger(__name__)
-
-from django.shortcuts import redirect
 
 def generate_titles_pdf(request):
     tag_name = request.POST.get('tag_name')  # Retrieve the tag name from POST
@@ -175,6 +205,12 @@ def generate_single_song_pdf(request, song_id):
     # Fetch the song and user
     song = Song.objects.get(pk=song_id)
     user = request.user
+
+    # Fetch the user's instrument preference
+    #try:
+    #    instrument = user.userpreference.instrument
+    #except UserPreference.DoesNotExist:
+    #    instrument = 'ukulele'  # Default to ukulele if no preference is set
 
 
     # Prepare the response
@@ -327,21 +363,25 @@ class SongUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         # Update the lyrics_with_chords field with parsed data
         form.instance.lyrics_with_chords = parsed_lyrics
         return super().form_valid(form)
+#If user needs to be contributor
+#  def test_func(self):
+#       song = self.get_object()
+#       if self.request.user == song.contributor:
+#           return True
+#       return False 
+
+#   def get_object(self, queryset=None):
+#       # Ensure only the contributor can update the song
+#       obj = super().get_object(queryset)
+#       if obj.contributor != self.request.user:
+#           raise PermissionDenied("You do not have permission to edit this song.")
+#       return obj
 
     def test_func(self):
-        song = self.get_object()
-        if self.request.user == song.contributor:
-            return True
-        return False 
+        return self.request.user.is_authenticated
 
     def get_object(self, queryset=None):
-        # Ensure only the contributor can update the song
-        obj = super().get_object(queryset)
-        if obj.contributor != self.request.user:
-            raise PermissionDenied("You do not have permission to edit this song.")
-        return obj
-
-
+        return super().get_object(queryset)
 
 
 class SongDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
