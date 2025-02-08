@@ -2,30 +2,55 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.db.models import Value
 from django.db.models.functions import Concat
-from .models import Song
+from .models import Song, SongFormatting
+from django import forms
 
 
-def assign_tags(modeladmin, request, queryset):
-    tag_name = 'OldTimeRockNRoll'  # Replace with the tag you want to assign
-    for song in queryset:
-        song.tags.add(tag_name)
-        song.save()
-    modeladmin.message_user(request, f"Tag '{tag_name}' added to selected songs.")
+# Custom admin form to show JSON fields as editable text areas
+class SongFormattingAdminForm(forms.ModelForm):
+    class Meta:
+        model = SongFormatting
+        fields = '__all__'
+        widgets = {
+            'intro': forms.Textarea(attrs={'rows': 3, 'cols': 50}),
+            'verse': forms.Textarea(attrs={'rows': 3, 'cols': 50}),
+            'chorus': forms.Textarea(attrs={'rows': 3, 'cols': 50}),
+            'bridge': forms.Textarea(attrs={'rows': 3, 'cols': 50}),
+            'interlude': forms.Textarea(attrs={'rows': 3, 'cols': 50}),
+            'outro': forms.Textarea(attrs={'rows': 3, 'cols': 50}),
+        }
 
-assign_tags.short_description = "Assign 'example-tag' to selected songs"
+# Custom display function for JSON fields in admin list view
+@admin.register(SongFormatting)
+class SongFormattingAdmin(admin.ModelAdmin):
+    form = SongFormattingAdminForm
+    list_display = ('user', 'song', 'display_intro_font_size', 'display_verse_font_size', 'display_chorus_font_size')
+
+    def display_intro_font_size(self, obj):
+        """ Show font size for Intro in admin list view """
+        return obj.intro.get("font_size", "Default") if obj.intro else "Default"
+    display_intro_font_size.short_description = "Intro Font Size"
+
+    def display_verse_font_size(self, obj):
+        """ Show font size for Verse in admin list view """
+        return obj.verse.get("font_size", "Default") if obj.verse else "Default"
+    display_verse_font_size.short_description = "Verse Font Size"
+
+    def display_chorus_font_size(self, obj):
+        """ Show font size for Chorus in admin list view """
+        return obj.chorus.get("font_size", "Default") if obj.chorus else "Default"
+    display_chorus_font_size.short_description = "Chorus Font Size"
+
+
+
+
 
 
 @admin.register(Song)
-
-
-
-
-
 class SongAdmin(admin.ModelAdmin):
     list_display = ['songTitle', 'get_artist', 'get_year', 'get_youtube', 'get_tags']
     search_fields = ['songTitle', 'metadata__artist']
     ordering = ('metadata__artist',)
-    actions = [assign_tags]
 
     def get_year(self, obj):
         return obj.metadata.get('year', 'Unknown') if obj.metadata else 'No Metadata'

@@ -13,14 +13,14 @@ from taggit.managers import TaggableManager
 class Song(models.Model):
     songTitle = models.CharField(max_length=100, blank=True, null=True)
     songChordPro = models.TextField()  # Original
-    tags = TaggableManager(blank=True)
     lyrics_with_chords = models.JSONField(null=True, blank=True)
+    tags = TaggableManager(blank=True) 
     metadata = models.JSONField(blank=True, null=True)  # Stores metadata as JSON
     date_posted = models.DateField(default=timezone.now)
     contributor = models.ForeignKey(User, on_delete=models.CASCADE)
     acknowledgement = models.CharField(max_length=100, blank=True, null=True)
     #abc_notation = models.TextField(blank=True, null=True, help_text="Optional ABC notation for this song.")
-     
+    
     
     def save(self, *args, **kwargs):
         # Only parse title if songTitle is not manually set
@@ -112,4 +112,4 @@ class SongFormatting(models.Model):
         unique_together = ('user', 'song')  # Ensure each user has only one formatting per song
 
     def __str__(self):
-        return f"Formatting for {self.song.title} by {self.user.username}"
+        return f"Formatting for {self.song.songTitle} by {self.user.username}"
