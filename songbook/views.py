@@ -94,15 +94,6 @@ def preview_pdf(request, song_id):
     return response
 
 
-def song_detail(request, song_id):
-    song = get_object_or_404(Song, id=song_id)
-
-    # Ensure the user has formatting for this song
-    formatting, created = SongFormatting.objects.get_or_create(user=request.user, song=song)
-
-    return render(request, 'song_detail.html', {'song': song, 'formatting': formatting})
-
-
 
 def song_list(request):
     form = TagFilterForm(request.POST or None)
