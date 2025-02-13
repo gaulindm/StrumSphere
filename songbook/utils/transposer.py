@@ -1,6 +1,6 @@
 # transposer.py
 from collections import Counter
-
+import re
 def detect_key(parsed_data):
     key_chords = {
         'C': ['C', 'Dm', 'Em', 'F', 'G', 'Am'],
@@ -28,24 +28,67 @@ def detect_key(parsed_data):
 
     return detected_key
 
-# transposer.py
+def clean_chord(chord):
+    """Removes strumming indicators (slashes) from chords."""
+    return re.sub(r"/+", "", chord)  # ✅ Replace one or more slashes with nothing
+
 def extract_chords(parsed_data, unique=False):
+    """Extract chords from parsed data, removing duplicates if needed."""
     chords = []
     for section in parsed_data:
         for item in section:
             if isinstance(item, dict) and 'chord' in item and item['chord']:
-                chords.append(item['chord'])
+                clean = clean_chord(item['chord'])  # ✅ Remove slashes
+                chords.append(clean)
     
-    if unique:
-        return list(set(chords))  # Return unique chords
-    return chords  # Return all chords
+    return list(set(chords)) if unique else chords  # ✅ Ensure unique chords if needed
 
-# transposer.py
-def transpose_chord(chord, steps):
-    notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    index = notes.index(chord)
-    new_index = (index + steps) % len(notes)
-    return notes[new_index]
+
+ENHARMONIC_EQUIVALENTS = {
+    "B#": "C", "E#": "F", "Cb": "B", "Fb": "E",
+    "A#": "Bb", "D#": "Eb", "G#": "G#",  # ✅ Force G# notation
+    "Bb": "A#", "Eb": "D#", "Ab": "G#"  # ✅ Always convert Ab → G#
+}
+
+NOTES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+NOTES_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
+
+def normalize_chord(chord):
+    """Convert enharmonic chords to a consistent sharp (#) format."""
+    return ENHARMONIC_EQUIVALENTS.get(chord, chord)  # ✅ Convert flats to sharps
+
+def transpose_chord(chord, semitones):
+    """Transpose a chord up/down by a given number of semitones."""
+    
+    root, suffix = "", ""
+    
+    # ✅ Extract root note + accidental if present
+    if len(chord) > 1 and chord[1] in "#b":
+        root, suffix = chord[:2], chord[2:]  # e.g., "D#" → root="D#", suffix="m7"
+    else:
+        root, suffix = chord[:1], chord[1:]  # e.g., "Gm7" → root="G", suffix="m7"
+
+    # ✅ Normalize root note (Ds → D#)
+    if root in ENHARMONIC_EQUIVALENTS:
+        root = ENHARMONIC_EQUIVALENTS[root]
+
+    # ✅ Ensure root is a valid note
+    if root not in NOTES_SHARP and root not in NOTES_FLAT:
+        raise ValueError(f"Invalid root note: {root}")  # 🚨 Catch unexpected notes
+
+    # ✅ Choose the correct scale (sharp or flat) based on the current root
+    notes = NOTES_SHARP if root in NOTES_SHARP else NOTES_FLAT
+
+    # ✅ Find new transposed note
+    new_index = (notes.index(root) + semitones) % 12
+    transposed_root = notes[new_index]
+
+    # ✅ Convert enharmonic equivalents to the most common notation
+    transposed_root = normalize_chord(transposed_root)
+
+    return transposed_root + suffix  # ✅ Keep original chord structure
+
+
 
 def calculate_steps(original_key, new_key):
     notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -65,4 +108,3 @@ def transpose_lyrics(parsed_data, steps):
                 transposed_section.append(item)
         transposed_data.append(transposed_section)
     return transposed_data
-
