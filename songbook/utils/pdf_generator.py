@@ -16,31 +16,94 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from songbook.utils.transposer import transpose_chord, normalize_chord  # ✅ Import normalize_chord
 from songbook.utils.transposer import transpose_chord  # ✅ Make sure this path is correct!
 
+
+def draw_footer_with_doc(canvas, doc):
+        """
+        Wrapper function to call draw_footer with required arguments.
+        """
+        draw_footer(
+            canvas, doc, doc.relevant_chords, doc.chord_spacing, doc.row_spacing, doc.is_lefty,
+            instrument=doc.instrument,
+            secondary_instrument=doc.secondary_instrument,
+            is_printing_alternate_chord=doc.is_printing_alternate_chord,
+            acknowledgement=doc.acknowledgement
+        )
+
 def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None):
     doc = SimpleDocTemplate(response, pagesize=letter, topMargin=2, bottomMargin=80, leftMargin=20, rightMargin=20)
     styles = getSampleStyleSheet()
     base_style = styles["BodyText"]
     elements = []
 
+    instrument = user.userpreference.primary_instrument
+    
+    # ✅ Retrieve user instrument preferences first
+    user_preferences = getattr(user, "userpreference", None)
+    if not user_preferences:
+        raise ValueError("User preferences not found")
 
+    primary_instrument = user_preferences.primary_instrument
+    secondary_instrument = getattr(user_preferences, "secondary_instrument", None)
 
-    # Get user preferences
-    instrument = user.userpreference.instrument
     is_lefty = user.userpreference.is_lefty
     is_printing_alternate_chord = user.userpreference.is_printing_alternate_chord
 
+    # ✅ Ensure primary_instrument is set
+    if not primary_instrument:
+        raise ValueError("Primary instrument not found in user preferences")
 
-    # Load chords and extract relevant ones
-    chords = load_chords(instrument)
+    # ✅ Now it's safe to load chords
+    chords_primary = load_chords(primary_instrument)
+    chords_secondary = load_chords(secondary_instrument) if secondary_instrument else []
+
+
+
+    # Tag chords with their instrument for identification in draw_footer
+    for chord in chords_primary:
+        chord["instrument"] = primary_instrument  
+    for chord in chords_secondary:
+        chord["instrument"] = secondary_instrument  
+
+    # Merge chord lists
+    chords = chords_primary + chords_secondary
+
+
+
+
     used_chords = [normalize_chord(chord) for chord in extract_used_chords(songs[0].lyrics_with_chords)]
+    
+
+
+
+
+
+
     
     # ✅ Transpose chords before extracting relevant diagrams
     if not hasattr(response, "transposed_chords"):
         response.transposed_chords = {transpose_chord(chord, transpose_value) for chord in used_chords}
+    
     transposed_chords = response.transposed_chords  # ✅ Ensure it's always defined
-    used_chords = list(response.transposed_chords)  # Use the cached transposed chords
+    
 
     relevant_chords = [chord for chord in chords if chord["name"].lower() in map(str.lower, transposed_chords)]
+
+
+   # Store relevant data in doc for later use in draw_footer
+    doc.relevant_chords = relevant_chords
+    doc.instrument = primary_instrument
+    doc.secondary_instrument = secondary_instrument
+    doc.chord_spacing = 50 if primary_instrument == "ukulele" else 70
+    doc.row_spacing = 72
+    doc.is_lefty = is_lefty
+    doc.is_printing_alternate_chord = is_printing_alternate_chord
+    doc.acknowledgement = songs[0].acknowledgement if hasattr(songs[0], 'acknowledgement') else ""
+
+
+
+
+
+
 
 
     # Get user formatting settings or create defaults
@@ -60,7 +123,7 @@ def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None
 
 
     # Calculate diagrams per row and rows needed
-    chord_spacing = 50 if instrument == "ukulele" else 70  # Adjust spacing per instrument
+    chord_spacing = 20 if instrument == "ukulele" else 70  # Adjust spacing per instrument
     page_width, page_height = letter
     max_chords_per_row = int((page_width - 2 * doc.leftMargin) / chord_spacing)
     total_diagrams = len(relevant_chords) * (2 if len(relevant_chords) < 7 else 1)  # Include 2 variations if < 7 chords
@@ -74,7 +137,7 @@ def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None
         doc.bottomMargin = max(80, diagram_height + 20)  # Ensure there's enough space for diagrams
 
     # Debugging output
-    print(f"Total diagrams: {total_diagrams}, Rows needed: {rows_needed}, Bottom margin: {doc.bottomMargin}")
+    print(f"Total diagrams for calculatingmargin: {total_diagrams}, Rows needed: {rows_needed}, Bottom margin: {doc.bottomMargin}")
 
 
 
@@ -142,16 +205,24 @@ def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None
 
     for song in songs:
         #preferences = user.userpreference
-        instrument = user.userpreference.instrument
-        is_lefty = user.userpreference.is_lefty
+        #primary_instrument = user.userpreference.primary_instrument
+        #secondary_instrument = user.userpreference.secondary_instrument  # Optional
 
-        chords = load_chords(instrument)
-        used_chords = extract_used_chords(song.lyrics_with_chords)
+        #is_lefty = user.userpreference.is_lefty
+
+        # Load chords for both instruments
+        #chords_primary = load_chords(primary_instrument)
+        #chords_secondary = load_chords(secondary_instrument) if secondary_instrument else []
+
+        # Merge the lists instead of using a dictionary merge
+        #chords = chords_primary + chords_secondary
+
+        #used_chords = extract_used_chords(song.lyrics_with_chords)
         #relevant_chords = [chord for chord in chords if chord["name"].lower() in map(str.lower, used_chords)]
-        relevant_chords = [
-            chord for chord in chords 
-            if chord["name"].lower() in map(str.lower, transposed_chords) and chord["name"] != "[N.C.]"  # ✅ Exclude [N.C.]
-        ]
+        #relevant_chords = [
+        #    chord for chord in chords 
+        #    if chord["name"].lower() in map(str.lower, transposed_chords) and chord["name"] != "[N.C.]"  # ✅ Exclude [N.C.]
+        #]
 
 
         # Header Section
@@ -351,19 +422,31 @@ def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None
     chord_spacing = available_width / max_chords_per_row
     row_spacing = 72
 
+    ### Before adding dual instruments
     # Update the doc.build section to include acknowledgements
+    #doc.build(
+    #    elements,
+    #    onFirstPage=lambda c, d: draw_footer(
+    #        c, d, relevant_chords, chord_spacing, row_spacing, is_lefty,
+    #        instrument=instrument,
+    #        secondary_instrument=secondary_instrument,  # Pass secondary instrument
+    #        is_printing_alternate_chord=user.userpreference.is_printing_alternate_chord,
+    #        acknowledgement=songs[0].acknowledgement if hasattr(songs[0], 'acknowledgement') else ''
+    #    ),
+    #    onLaterPages=lambda c, d: draw_footer(
+    #        c, d, relevant_chords, chord_spacing, row_spacing, is_lefty,
+    #        instrument=instrument,
+    #        secondary_instrument=secondary_instrument,  # Pass secondary instrument
+    #        is_printing_alternate_chord=user.userpreference.is_printing_alternate_chord,
+    #        acknowledgement=songs[0].acknowledgement if hasattr(songs[0], 'acknowledgement') else ''
+    #    )
+
+    #)
+      # Build PDF with custom footer handling
     doc.build(
         elements,
-        onFirstPage=lambda c, d: draw_footer(
-            c, d, relevant_chords, chord_spacing, row_spacing, is_lefty,
-            instrument=instrument,
-            is_printing_alternate_chord=user.userpreference.is_printing_alternate_chord,
-            acknowledgement=songs[0].acknowledgement if hasattr(songs[0], 'acknowledgement') else ''
-        ),
-        onLaterPages=lambda c, d: draw_footer(
-            c, d, relevant_chords, chord_spacing, row_spacing, is_lefty,
-            instrument=instrument,
-            is_printing_alternate_chord=user.userpreference.is_printing_alternate_chord,
-            acknowledgement=songs[0].acknowledgement if hasattr(songs[0], 'acknowledgement') else ''
-        )
+        onFirstPage=lambda c, d: draw_footer_with_doc(c, d),
+        onLaterPages=lambda c, d: draw_footer_with_doc(c, d)
     )
+
+    
