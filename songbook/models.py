@@ -21,23 +21,29 @@ class Song(models.Model):
     acknowledgement = models.CharField(max_length=100, blank=True, null=True)
     #abc_notation = models.TextField(blank=True, null=True, help_text="Optional ABC notation for this song.")
     
-    
-    def save(self, *args, **kwargs):
-        # Only parse title if songTitle is not manually set
-        if not self.songTitle:
-            self.songTitle, self.metadata = self.parse_metadata_from_chordpro()
-        else:
-            # Only update metadata
-            _, self.metadata = self.parse_metadata_from_chordpro()
         
-        # Parse the songChordPro content of the song
-        self.lyrics_with_chords = parse_song_data(self.songChordPro)
+    def save(self, *args, **kwargs):
+            # Check if the song exists and retrieve old data
+            if self.pk:
+                old_song = Song.objects.get(pk=self.pk)
+                if old_song.songChordPro != self.songChordPro:  
+                    self.date_posted = timezone.now().date()  # Update date_posted when content changes
 
-        # Detect the key if not already specified
-        if not self.metadata.get('key'):
-            self.metadata['key'] = detect_key(self.lyrics_with_chords)
-            
-        super().save(*args, **kwargs)
+            # Only parse title if songTitle is not manually set
+            if not self.songTitle:
+                self.songTitle, self.metadata = self.parse_metadata_from_chordpro()
+            else:
+                # Only update metadata
+                _, self.metadata = self.parse_metadata_from_chordpro()
+
+            # Parse the songChordPro content of the song
+            self.lyrics_with_chords = parse_song_data(self.songChordPro)
+
+            # Detect the key if not already specified
+            #if not self.metadata.get('key'):
+            #    self.metadata['key'] = detect_key(self.lyrics_with_chords)
+
+            super().save(*args, **kwargs)
 
     def parse_metadata_from_chordpro(self):
         # Regular expressions to find all relevant metadata tags

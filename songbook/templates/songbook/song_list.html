@@ -37,6 +37,7 @@
             <tr class="align-middle">
                 <th>Score</th>
                 <th>Performed by</th>
+                <th>Posted/Updated</th>
                 <th>Year</th>
                 <th>Tags</th>
                 <th class="text-center">Chords</th>
@@ -52,6 +53,9 @@
                     </a>
                 </td>
                 <td>{{ item.song.metadata.artist|default_if_none:"Unknown Artist" }}</td>
+                <td class="text-center">
+                    {{ item.song.date_posted}}
+                </td>
                 <td class="text-center">
                     {{ item.song.metadata.year|default_if_none:"" }}
                 </td>
