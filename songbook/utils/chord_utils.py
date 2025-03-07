@@ -1,3 +1,4 @@
+
 import os
 import json
 from django.conf import settings
@@ -109,10 +110,10 @@ def load_chords(instrument):
         with open(file_path, 'r') as file:
             return json.load(file)
     except FileNotFoundError:
-        print(f"Error: Chord file not found for {instrument}")
+        #print(f"Error: Chord file not found for {instrument}")
         return []
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON format in {file_path}: {e}")
+        #print(f"Error: Invalid JSON format in {file_path}: {e}")
         return []
     
 def extract_used_chords(lyrics_with_chords):
@@ -215,7 +216,7 @@ def draw_footer(canvas, doc, relevant_chords, chord_spacing, row_spacing,
     
 
     start_y = 34 if rows_needed == 1 else 172
-    print(f"DEBUG: start_y calculated from pdf_generator {start_y}")
+    #print(f"DEBUG: start_y calculated from pdf_generator {start_y}")
     if not secondary_instrument:
         label_y = draw_diagrams(primary_diagrams, page_width / 4, start_y)
     else:
@@ -224,7 +225,7 @@ def draw_footer(canvas, doc, relevant_chords, chord_spacing, row_spacing,
 
 
 
-
+    
 
     if secondary_instrument:
         label_y = 96 if rows_needed == 1 else 165  # Keep it simple!
@@ -239,5 +240,5 @@ def draw_footer(canvas, doc, relevant_chords, chord_spacing, row_spacing,
         canvas.setFont("Helvetica-Oblique", 10)
         canvas.drawCentredString(
             doc.pagesize[0] / 2, 0.2 * inch,  #changer .5 a .25
-            f"Gracieusté de: {acknowledgement}"
+            f"Ackowledgement: {acknowledgement}"
         )

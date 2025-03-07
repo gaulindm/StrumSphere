@@ -14,19 +14,19 @@ class Song(models.Model):
     songTitle = models.CharField(max_length=100, blank=True, null=True)
     songChordPro = models.TextField()  # Original
     lyrics_with_chords = models.JSONField(null=True, blank=True)
-    tags = TaggableManager(blank=True) 
+    tags = TaggableManager(blank=True)
     metadata = models.JSONField(blank=True, null=True)  # Stores metadata as JSON
     date_posted = models.DateField(default=timezone.now)
     contributor = models.ForeignKey(User, on_delete=models.CASCADE)
     acknowledgement = models.CharField(max_length=100, blank=True, null=True)
     #abc_notation = models.TextField(blank=True, null=True, help_text="Optional ABC notation for this song.")
-    
-        
+
+
     def save(self, *args, **kwargs):
             # Check if the song exists and retrieve old data
             if self.pk:
                 old_song = Song.objects.get(pk=self.pk)
-                if old_song.songChordPro != self.songChordPro:  
+                if old_song.songChordPro != self.songChordPro:
                     self.date_posted = timezone.now().date()  # Update date_posted when content changes
 
             # Only parse title if songTitle is not manually set
@@ -52,30 +52,30 @@ class Song(models.Model):
             "comment": re.search(r'{(?:comment|c):\s*(.+?)}', self.songChordPro, re.IGNORECASE | re.UNICODE),
             "artist": re.search(r'{artist:\s*([^\}]+)}', self.songChordPro, re.IGNORECASE | re.UNICODE),
             "songwriter": re.search(r'{songwriter:\s*([^\}]+)}', self.songChordPro, re.IGNORECASE | re.UNICODE),
-            "recording": re.search(r'{recording:\s*([^\}]+)}', self.songChordPro, re.IGNORECASE | re.UNICODE),
+            "capo": re.search(r'{capo:\s*([^\}]+)}', self.songChordPro, re.IGNORECASE | re.UNICODE),
             "album": re.search(r'{album:\s*(.+?)}', self.songChordPro, re.IGNORECASE | re.UNICODE),
             "year": re.search(r'{year:\s*(\d{4})}', self.songChordPro, re.IGNORECASE),
             "key": re.search(r'{key:\s*(.+?)}', self.songChordPro, re.IGNORECASE),
             "1stnote": re.search(r'{1stnote:\s*(.+?)}', self.songChordPro, re.IGNORECASE),
             "tempo": re.search(r'{tempo:\s*(.+?)}', self.songChordPro, re.IGNORECASE),
-            "timeSignature": re.search(r'{timeSignature:\s*(.+?)}', self.songChordPro, re.IGNORECASE),           
+            "timeSignature": re.search(r'{timeSignature:\s*(.+?)}', self.songChordPro, re.IGNORECASE),
             "youtube": re.search(r'{youtube:\s*(https?://[^\s\}]+)}', self.songChordPro, re.IGNORECASE),  # New tag
         }
-        
+
         # Extract each tag's value, or use None if not found
         metadata = {tag: match.group(1) if match else None for tag, match in tags.items()}
-        
+
         # Set title separately as it is also stored in songTitle
         title = metadata.pop("title", "Untitled Song")
 
-        return title, metadata      
+        return title, metadata
 
     def __str__(self):
         return self.songTitle or "Untitled Song"
-    
+
     def get_absolute_url(self):
         return reverse('score', kwargs={'pk': self.pk})
-    
+
     def get_used_chords(self):
             """
             Extract chord names from the song's lyrics, handling nested lists or other complex structures.
@@ -101,7 +101,7 @@ class Song(models.Model):
 
             # Extract chord names using regex
             return list(set(re.findall(r'\[([A-G][#b]?(maj|min|dim|aug|sus|6|7|9)?)\]', lyrics_text)))
-    
+
 class SongFormatting(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)  # Each user gets their own formatting
     song = models.ForeignKey('Song', on_delete=models.CASCADE)  # Link to the song

@@ -1,12 +1,13 @@
 from django.urls import path
 from songbook import views
 from .views import (
-    SongListView, 
+    SongListView,
     SongCreateView,
     SongUpdateView,
     SongDeleteView,
     UserSongListView,
     ScoreView,
+    ArtistListView,
     edit_song_formatting
 )
 
@@ -29,9 +30,12 @@ urlpatterns = [
     path('generate-song-pdf/<int:song_id>/', views.generate_single_song_pdf, name='generate_single_song_pdf'),
  #   path("update_preferences/", update_preferences, name="update_preferences"),
     path('chord-dictionary/', views.chord_dictionary, name='chord-dictionary'),
-    path('generate_titles_pdf/', views.generate_titles_pdf, name='generate_titles_pdf'),
+    path('artists/', ArtistListView.as_view(), name='artist_list'),  # Show all artists
+    path('artists/letter/<str:letter>/', ArtistListView.as_view(), name='artist_by_letter'),  # Filter by letter
+    path('artists/<str:artist_name>/', SongListView.as_view(), name='artist_songs'),  # Songs by artist
+    #path('generate_titles_pdf/', views.generate_titles_pdf, name='generate_titles_pdf'),
     path('generate_multi_song_pdf/', views.generate_multi_song_pdf, name='generate_multi_song_pdf'),
     path("songs/<int:song_id>/edit_formatting/", edit_song_formatting, name="edit_formatting"),
 
 ]
-    
+

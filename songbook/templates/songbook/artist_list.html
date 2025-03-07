@@ -1,0 +1,104 @@
+{% extends "songbook/base.html" %}
+
+{% block content %}
+<style>
+.letter-nav-container {
+    display: flex;
+    align-items: center;  /* ✅ Keep everything aligned */
+    gap: 10px;
+    flex-wrap: nowrap;  /* ✅ Prevents wrapping */
+    justify-content: space-between;  /* ✅ Ensures space is distributed */
+    margin-bottom: 20px;  /* ✅ Adds space below the navigation bar */
+}
+
+.letter-nav {
+    display: flex;
+    flex-wrap: wrap;  /* ✅ Allows letters to wrap if needed */
+    gap: 5px;
+    flex-grow: 1;  /* ✅ Allows letters to take up space */
+}
+
+.letter-nav a {
+    text-decoration: none;
+    color: #007bff;
+    font-weight: bold;
+    padding: 5px 8px;
+}
+
+.letter-nav a.active {
+    color: #fff;
+    background-color: #007bff;
+    border-radius: 5px;
+}
+
+.artist-columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+}
+
+.artist-column {
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.artist-column ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.artist-column li {
+    margin-bottom: 5px;
+}
+
+/* ✅ Ensure the button stays on the same row */
+.all-artists-btn {
+    margin-left: auto;  /* ✅ Pushes button to the right */
+    white-space: nowrap;  /* ✅ Prevents button from wrapping */
+}
+</style>
+<h2>Parcourir par artiste</h2>
+
+
+<!-- ✅ Letter Navigation + Button in the Same Row -->
+<div class="letter-nav-container">
+    <div class="letter-nav">
+        {% for letter in first_letters %}
+            <a href="{% url 'artist_by_letter' letter %}"
+               class="{% if letter == selected_letter %}active{% endif %}">
+                {{ letter }}
+            </a>
+        {% endfor %}
+    </div>
+
+    {% if selected_letter %}
+        <a href="{% url 'artist_list' %}" class="btn btn-secondary all-artists-btn">
+            Afficher tous les artistes
+        </a>
+    {% endif %}
+</div>
+
+
+<!-- ✅ Artist List in Columns -->
+<div class="artist-columns">
+    {% for column in artist_columns %}
+        <div class="artist-column">
+            <ul>
+                {% for artist in column %}
+                    <li><a href="{% url 'artist_songs' artist %}">{{ artist }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}
+{% if not user.is_authenticated %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var authModal = new bootstrap.Modal(document.getElementById('authModal'));
+        authModal.show();
+    });
+</script>
+{% endif %}

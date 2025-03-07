@@ -1,77 +1,137 @@
-
-from django.template.loader import render_to_string
-from django.shortcuts import render, get_object_or_404
-from django.urls import reverse, reverse_lazy
-from django.contrib.auth.mixins import LoginRequiredMixin,  UserPassesTestMixin
-from django.contrib.auth.models import User
-from django.views.generic import (
-    ListView, 
-    DetailView,
-    CreateView,
-    UpdateView,
-    DeleteView,
-    )
-from .models import Song
-from django.views import View
-from django.db. models import Prefetch
-from .parsers import parse_song_data
-from .utils.transposer import extract_chords, calculate_steps, transpose_lyrics, detect_key
-from unidecode import unidecode
-from django.http import HttpResponse
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.lib.pagesizes import letter
-from django.db.models import Q  # Import Q for complex queries
-from django.views.generic import ListView
-from django.contrib.auth.decorators import login_required
-from .models import Song, SongFormatting  # Adjust based on your models
-from taggit.models import Tag
-from songbook.utils.pdf_generator import generate_songs_pdf  # Import the utility function
-from django.http import JsonResponse
-from songbook.utils.pdf_generator import load_chords
-from users.models import UserPreference  # Replace `user` with the actual app name if different
-from songbook.utils.ABC2audio import convert_abc_to_audio
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required, permission_required
-from .models import SongFormatting
-from .forms import SongFormattingForm
-from django.shortcuts import render, redirect
+from django.db.models.functions import Lower
+from django.db.models import CharField
+from django.db.models.functions import Cast
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
-from .forms import SongForm, TagFilterForm
-from songbook.models import Song
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.urls import reverse, reverse_lazy
+from django.db.models import Q
 from django.utils.timezone import now
 from django.contrib.auth.models import User
-import re
+from django.template.loader import render_to_string
+from taggit.models import Tag
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet
+from collections import defaultdict
 
+# Import project-specific modules
+from .models import Song, SongFormatting
+from .forms import SongForm, TagFilterForm, SongFormattingForm
+from .parsers import parse_song_data
+from .utils.transposer import extract_chords, transpose_lyrics
+from songbook.utils.pdf_generator import generate_songs_pdf, load_chords
+from songbook.utils.ABC2audio import convert_abc_to_audio
+from users.models import UserPreference
+import urllib.parse
+import logging
 
-from django.http import HttpResponse
-from .utils.pdf_generator import generate_songs_pdf
-from .utils.transposer import transpose_lyrics  # Import your transposer function
+logger = logging.getLogger(__name__)
 
 @login_required
 @permission_required("songbook.change_songformatting", raise_exception=True)
 def edit_song_formatting(request, song_id):
-    formatting = get_object_or_404(SongFormatting, user=request.user, song_id=song_id)
+    """Edit song formatting with a fallback to Gaulind's settings if needed."""
 
-    # 🔍 Debugging - Check if song_id is empty or None
-    print(f"DEBUG: song_id before passing to template: {song_id}")
+    # Try to get user's formatting, or use Gaulind's as fallback
+    formatting, created = SongFormatting.objects.get_or_create(
+    user=request.user, song_id=song_id,
+    defaults={'intro': {}, 'verse': {}, 'chorus': {}, 'bridge': {}, 'interlude': {}, 'outro': {}}
+)
 
-    if not song_id:  # ✅ If song_id is missing, prevent a crash
-        messages.error(request, "Song ID is missing.")
-        return redirect("songbook-home")  # Redirect to home if song_id is invalid
+    if created:
+        gaulind_formatting = SongFormatting.objects.filter(user__username="Gaulind", song_id=song_id).first()
+        if gaulind_formatting:
+            formatting.intro = gaulind_formatting.intro
+            formatting.verse = gaulind_formatting.verse
+            formatting.chorus = gaulind_formatting.chorus
+            formatting.bridge = gaulind_formatting.bridge
+            formatting.interlude = gaulind_formatting.interlude
+            formatting.outro = gaulind_formatting.outro
+            formatting.save()
 
+    # Process the form
     if request.method == "POST":
         form = SongFormattingForm(request.POST, instance=formatting)
         if form.is_valid():
             form.save()
             messages.success(request, "Formatting updated successfully!")
-            print(f"DEBUG: Redirecting to score with pk={song_id}")  # ✅ Debugging
-            return redirect("score", pk=song_id)  # ✅ Fix redirect
-
+            return redirect("score", pk=song_id)
     else:
         form = SongFormattingForm(instance=formatting)
 
     return render(request, "songbook/edit_formatting.html", {"form": form, "pk": song_id})
+
+class ArtistListView(LoginRequiredMixin, ListView):
+    template_name = "songbook/artist_list.html"
+    context_object_name = "artists"
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return render(request, "users/auth_modal.html", {"next_url": request.path})
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        """
+        Get unique artists and filter by first letter if provided.
+        """
+        queryset = (
+            Song.objects.exclude(metadata__artist__isnull=True)
+            .exclude(metadata__artist="")
+            .annotate(artist_name=Lower(Cast("metadata__artist", CharField())))
+            .values_list("metadata__artist", flat=True)
+            .distinct()
+            .order_by("artist_name")
+        )
+
+        # Get the letter from the URL if filtering by letter
+        letter = self.kwargs.get("letter")
+
+        if letter:
+            # ✅ Ensure None values are filtered out before accessing the first character
+            queryset = [artist for artist in queryset if artist and artist[0].upper() == letter.upper()]
+
+        return queryset
+
+
+    def get_context_data(self, **kwargs):
+        """Ensure letter navigation is always visible."""
+        context = super().get_context_data(**kwargs)
+
+        # ✅ Get all unique artist names (not just filtered ones)
+        all_artists = (
+            Song.objects.exclude(metadata__artist__isnull=True)
+            .exclude(metadata__artist="")
+            .annotate(artist_name=Lower(Cast("metadata__artist", CharField())))
+            .values_list("metadata__artist", flat=True)
+            .distinct()
+        )
+
+        # ✅ Extract all first letters from all artists
+        first_letters = sorted(set(artist[0].upper() for artist in all_artists if artist))
+
+        # ✅ Filtrer les artistes si une lettre est sélectionnée
+        letter = self.kwargs.get("letter")
+        if letter:
+            filtered_artists = sorted([artist for artist in all_artists if artist and artist[0].upper() == letter.upper()])
+        else:
+            filtered_artists = sorted(all_artists)  # ✅ Toujours trier alphabétiquement
+
+        # ✅ Split into columns (max 20 per column)
+        artists_per_column = 20
+        artist_columns = [filtered_artists[i:i + artists_per_column] for i in range(0, len(filtered_artists), artists_per_column)]
+
+        context["artist_columns"] = artist_columns  # ✅ Keep artists split into columns
+        context["first_letters"] = first_letters  # ✅ Ensure letters always appear
+        context["selected_letter"] = letter  # ✅ Track selected letter
+
+        # ✅ Debugging print (Check this in PythonAnywhere error logs)
+        print("DEBUG: First Letters Passed to Template:", first_letters)
+
+        return context
+
 
 
 def preview_pdf(request, song_id):
@@ -79,37 +139,25 @@ def preview_pdf(request, song_id):
     song = get_object_or_404(Song, pk=song_id)
     user = request.user
 
+    existing_formatting = SongFormatting.objects.filter(user=user, song=song).exists()
+    formatting = SongFormatting.objects.filter(user=user, song=song).first()
 
-    formatting, _ = SongFormatting.objects.get_or_create(user=user, song=song)
+    if not formatting:
+        # 🚀 If no formatting exists for the user, use Gaulind’s formatting as the default
+        formatting = SongFormatting.objects.filter(user__username="Gaulind", song=song).first()
 
-    # ✅ Get transpose value (default to 0)
+    after_retrieval_formatting = SongFormatting.objects.filter(user=user, song=song).exists()
     transpose_value = int(request.GET.get("transpose", 0))
-        # Transpose the song if needed
+
+    # Transpose the song if needed
     if transpose_value != 0:
         song.lyrics_with_chords = transpose_lyrics(song.lyrics_with_chords, transpose_value)
+
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="{song.songTitle}_preview.pdf"'
 
-    generate_songs_pdf(response, [song], user, transpose_value, formatting)  
+    generate_songs_pdf(response, [song], user, transpose_value, formatting)
     return response
-
-
-
-
-
-def song_list(request):
-    form = TagFilterForm(request.POST or None)
-    songs = Song.objects.all()
-
-    if request.method == 'POST' and form.is_valid():
-        selected_tag = form.cleaned_data['tag']
-        songs = songs.filter(tags=selected_tag)
-
-    context = {
-        'songs': songs,
-        'form': form,
-    }
-    return render(request, 'song_list.html', context)
 
 
 
@@ -117,63 +165,29 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def generate_titles_pdf(request):
-    tag_name = request.POST.get('tag_name')  # Retrieve the tag name from POST
-    if tag_name:
-        try:
-            tag = Tag.objects.get(name=tag_name)  # Look up by name instead of ID
-            songs = Song.objects.filter(tags=tag)
-        except Tag.DoesNotExist:
-            songs = Song.objects.none()
-    else:
-        songs = Song.objects.none()
 
+def generate_pdf_response(filename, songs, user=None):
+    """Reusable function to generate and return a PDF response."""
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="song_titles.pdf"'
-
-    doc = SimpleDocTemplate(response, pagesize=letter)
-    styles = getSampleStyleSheet()
-    elements = [Paragraph("List of Songs", styles['Title']), Spacer(1, 12)]
-
-    for song in songs:
-        elements.append(Paragraph(song.songTitle, styles['Normal']))
-        elements.append(Spacer(1, 12))
-
-    doc.build(elements)
+    response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+    generate_songs_pdf(response, songs, user)
     return response
 
 
 def generate_multi_song_pdf(request):
-    tag_name = request.POST.get('tag_name')
-    if tag_name:
-        try:
-            tag = Tag.objects.get(name=tag_name)
-            songs = Song.objects.filter(tags=tag)
-        except Tag.DoesNotExist:
-            songs = Song.objects.none()
-    else:
-        songs = Song.objects.none()
+    """Generates a PDF for multiple songs filtered by tag."""
+    tag_name = request.POST.get('tag_name', '').strip()
+    songs = Song.objects.filter(tags__name=tag_name) if tag_name else Song.objects.none()
 
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="multi_song_report.pdf"'
-
-    generate_songs_pdf(response, songs, request.user)
-    return response
+    return generate_pdf_response("multi_song_report", songs, request.user)
 
 
+@login_required
+def generate_single_song_pdf(request, song_id):
+    """Generates a PDF for a single song."""
+    song = get_object_or_404(Song, pk=song_id)
 
-
-
-def generate_audio_from_abc(request, song_id):
-    song = Song.objects.get(pk=song_id)
-    if not song.abc_notation:
-        return HttpResponse("No ABC notation available for this song.", status=400)
-
-    audio_path = convert_abc_to_audio(song.abc_notation)
-    with open(audio_path, "rb") as audio_file:
-        response = HttpResponse(audio_file.read(), content_type="audio/wav")
-        response["Content-Disposition"] = f'inline; filename="{song.title}_melody.wav"'
-        return response
+    return generate_pdf_response(song.songTitle, [song], request.user)
 
 def get_chord_definition(request, chord_name):
     """
@@ -185,7 +199,6 @@ def get_chord_definition(request, chord_name):
             return JsonResponse({"success": True, "chord": chord})
     return JsonResponse({"success": False, "error": f"Chord '{chord_name}' not found."})
 
-
 def chord_dictionary(request):
     instruments = ["ukulele", "guitar", "mandolin", "banjo", "baritone_ukulele"]
     chord_data = {instrument: load_chords(instrument) for instrument in instruments}
@@ -194,42 +207,11 @@ def chord_dictionary(request):
 from django.shortcuts import render
 
 
-
-
-@login_required
-def generate_single_song_pdf(request, song_id):
-    from django.http import HttpResponse
-    from .models import Song
-    from .utils.pdf_generator import generate_songs_pdf
-
-    # Fetch the song and user
-    song = Song.objects.get(pk=song_id)
-    user = request.user
-
-    # Fetch the user's instrument preference
-    #try:
-    #    instrument = user.userpreference.instrument
-    #except UserPreference.DoesNotExist:
-    #    instrument = 'ukulele'  # Default to ukulele if no preference is set
-
-
-    # Prepare the response
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{song.songTitle}.pdf"'
-
-    # Generate the PDF
-    generate_songs_pdf(response, [song], user)
-    return response
-
-
-
 def home(request):
     context = {
         'songs':Song.objects.all()
     }
     return render(request, 'songbook/home.html',context)
-
-
 
 class SongListView(ListView):
     model = Song
@@ -238,6 +220,11 @@ class SongListView(ListView):
     ordering = ['songTitle']
     paginate_by = 25
 
+    def dispatch(self, request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return render(request, "users/auth_modal.html", {"next_url": request.path})
+            return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         """
         Override to filter the song queryset based on search query and tag.
@@ -245,18 +232,21 @@ class SongListView(ListView):
         queryset = super().get_queryset()
         search_query = self.request.GET.get('q', '')  # Search query
         selected_tag = self.request.GET.get('tag', '')  # Selected tag
+        artist_name = self.kwargs.get('artist_name')  # Get artist from URL
 
         # Apply filters
         if search_query:
             queryset = queryset.filter(
                 Q(songTitle__icontains=search_query) |
                 Q(metadata__artist__icontains=search_query) |
-                Q(metadata__composer__icontains=search_query) |
-                Q(metadata__lyricist__icontains=search_query)
+                Q(metadata__songwriter__icontains=search_query)
             )
 
         if selected_tag:  # Filter by tag if a tag is selected
             queryset = queryset.filter(tags__name=selected_tag)
+
+        if artist_name:
+            queryset = queryset.filter(metadata__artist__iexact=artist_name)  # ✅ No need to decode
 
         return queryset
 
@@ -273,6 +263,7 @@ class SongListView(ListView):
         Add filtered song data, chords, and tags to the template context.
         """
         context = super().get_context_data(**kwargs)
+        context['selected_artist'] = self.kwargs.get('artist_name')
         search_query = self.request.GET.get('q', '')
         selected_tag = self.request.GET.get('tag', '')  # Selected tag
         song_data = []
@@ -297,9 +288,6 @@ class SongListView(ListView):
         context['all_tags'] = all_tags  # Add all tags to context
         return context
 
-
-
-    
 class UserSongListView (ListView):
     model = Song
     template_name = 'songbook/user_songs.html'
@@ -313,10 +301,12 @@ class UserSongListView (ListView):
 
 
 #This is second column of home.html
-class ScoreView(DetailView):
+class ScoreView(LoginRequiredMixin, DetailView):
     model = Song
-    template_name = 'songbook/song_simplescore.html'  # Temporary template for experiments 
+    template_name = 'songbook/song_simplescore.html'
     context_object_name = 'score'
+    login_url = "/users/login/"
+    redirect_field_name = "next"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -327,12 +317,8 @@ class ScoreView(DetailView):
             context["preferences"] = preferences
         else:
             context["preferences"] = None  # Handle unauthenticated users if necessary
-        
+
         return context
-
-
-
-
 
 class SongCreateView(LoginRequiredMixin, CreateView):
     model = Song
@@ -344,12 +330,16 @@ class SongCreateView(LoginRequiredMixin, CreateView):
 class SongUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Song
     fields = ['songTitle', 'songChordPro', 'lyrics_with_chords', 'metadata','tags','acknowledgement']
-    success_url = reverse_lazy('songbook-home')  # Redirect after success
+    #success_url = reverse_lazy('songbook-home')  # Redirect after success
+
+    def get_success_url(self):
+        # Redirect to the updated song's detail page
+        return reverse('score', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
         # Assign the contributor to the current user
         form.instance.contributor = self.request.user
-        
+
         # Parse the songChordPro field
         raw_lyrics = form.cleaned_data['songChordPro']
         try:
@@ -359,23 +349,11 @@ class SongUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             # Handle errors in parsing gracefully
             form.add_error('songChordPro', f"Error parsing song data: {e}")
             return self.form_invalid(form)
-        
+
         # Update the lyrics_with_chords field with parsed data
         form.instance.lyrics_with_chords = parsed_lyrics
         return super().form_valid(form)
-#If user needs to be contributor
-#  def test_func(self):
-#       song = self.get_object()
-#       if self.request.user == song.contributor:
-#           return True
-#       return False 
 
-#   def get_object(self, queryset=None):
-#       # Ensure only the contributor can update the song
-#       obj = super().get_object(queryset)
-#       if obj.contributor != self.request.user:
-#           raise PermissionDenied("You do not have permission to edit this song.")
-#       return obj
 
     def test_func(self):
         return self.request.user.is_authenticated

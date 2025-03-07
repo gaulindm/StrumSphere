@@ -7,10 +7,10 @@
         <!-- Search Bar -->
         <div class="col-md-3">
             <div class="input-group">
-                <input type="text" name="q" class="form-control" 
-                       placeholder="Search by title, artist, songwriter"
+                <input type="text" name="q" class="form-control"
+                       placeholder="Recherche par title, compositeur et interprete"
                        value="{{ search_query }}">
-                <button class="btn btn-primary" type="submit">Search</button>
+                <button class="btn btn-primary" type="submit">Recherche</button>
             </div>
         </div>
         <!-- Tags Section -->
@@ -28,19 +28,23 @@
     </div>
 </form>
 
-
+{% if selected_artist %}
+    <h2>Songs by {{ selected_artist }}</h2>
+    <a href="{% url 'artist_list' %}" class="btn btn-secondary">Parcourir tous les interprètes</a>
+{% else %}
+    <h2>Toutes les partition</h2>
+{% endif %}
 
 <!-- Song List Table -->
 <div class="table-responsive">
     <table class="table table-striped table-hover table-condensed">
         <thead>
-            <tr class="align-middle">
-                <th>Score</th>
-                <th>Performed by</th>
-                <th>Posted/Updated</th>
-                <th>Year</th>
+            <tr>
+                <th>Partition</th>
+                <th>Interprète</th>
+                <th>Année</th>
                 <th>Tags</th>
-                <th class="text-center">Chords</th>
+                <th class="text-center">Accords jouées</th>
                 <th class="text-center">Actions</th> <!-- Add Actions column -->
             </tr>
         </thead>
@@ -54,30 +58,27 @@
                 </td>
                 <td>{{ item.song.metadata.artist|default_if_none:"Unknown Artist" }}</td>
                 <td class="text-center">
-                    {{ item.song.date_posted}}
-                </td>
-                <td class="text-center">
                     {{ item.song.metadata.year|default_if_none:"" }}
                 </td>
-                <td>        
+                <td>
                     {% for tag in item.song.tags.all %}
                         <small>{{ tag }}</small>{% if not forloop.last %}, {% endif %}
                     {% endfor %}
                 </td>
                 <td class="text-center">
-                    
 
 
-                    {% if item.chords|length > 25 %}
-                        {{ item.chords|slice:":25"}}...
+
+                    {% if item.chords|length > 55 %}
+                        {{ item.chords|slice:":55"}}...
                     {% else %}
                         {{ item.chords}}
                     {% endif %}
 
                 </td>
                 <td class="text-center">
-                    <a href="{% url 'generate_single_song_pdf' item.song.id %}" 
-                       class="btn btn-primary btn-sm btn-compact" 
+                    <a href="{% url 'generate_single_song_pdf' item.song.id %}"
+                       class="btn btn-primary btn-sm btn-compact"
                        title="Download PDF for {{ item.song.songTitle }}">
                         PDF
                     </a>
@@ -91,14 +92,58 @@
         </tbody>
     </table>
 </div>
-
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <!-- Left-aligned Button -->
-    <form method="post" action="{% url 'generate_multi_song_pdf' %}" class="mb-0">
-        {% csrf_token %}
-        <input type="hidden" name="tag_name" value="{{ selected_tag }}">
-        <button type="submit" class="btn btn-primary">Generate Multi-Song Report</button>
-    </form>
+<!-- Generate Multi-Song Report Button -->
+<button type="button" class="btn btn-primary" id="generateReportBtn">
+    Generate Multi-Song Report
+</button>
+
+<!-- Warning Modal -->
+<div class="modal fade" id="tagWarningModal" tabindex="-1" aria-labelledby="tagWarningModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tagWarningModalLabel">Select a Tag</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Please select a tag before generating the multi-song report.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Form (Only Submitted if a Tag is Selected) -->
+<form id="multiSongReportForm" method="POST" action="{% url 'generate_multi_song_pdf' %}">
+    {% csrf_token %}
+    <input type="hidden" name="tag_name" id="selectedTag" value="{{ selected_tag }}">
+</form>
+{% if not user.is_authenticated %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var authModal = new bootstrap.Modal(document.getElementById('authModal'));
+        authModal.show();
+    });
+</script>
+{% endif %}
+<script>
+document.getElementById("generateReportBtn").addEventListener("click", function() {
+    var selectedTag = document.getElementById("selectedTag").value;
+
+    if (!selectedTag) {
+        // Show the warning modal if no tag is selected
+        var modal = new bootstrap.Modal(document.getElementById("tagWarningModal"));
+        modal.show();
+    } else {
+        // Submit the form if a tag is selected
+        document.getElementById("multiSongReportForm").submit();
+    }
+});
+</script>
+
 
     <!-- Right-aligned Pagination -->
     {% if is_paginated %}
@@ -111,7 +156,7 @@
         {% for num in page_obj.paginator.page_range %}
             {% if page_obj.number == num %}
             <a class="btn btn-info" href="?page={{ num }}" aria-current="page">{{ num }}</a>
-            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            {% elif num > page_obj.number|add:'-5' and num < page_obj.number|add:'5' %}
             <a class="btn btn-outline-info" href="?page={{ num }}">{{ num }}</a>
             {% endif %}
         {% endfor %}
@@ -123,6 +168,5 @@
     </div>
     {% endif %}
 </div>
-
 
 {% endblock content %}
