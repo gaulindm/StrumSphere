@@ -4,18 +4,18 @@
 <style>
 .letter-nav-container {
     display: flex;
-    align-items: center;  /* ✅ Keep everything aligned */
+    align-items: center;
     gap: 10px;
-    flex-wrap: nowrap;  /* ✅ Prevents wrapping */
-    justify-content: space-between;  /* ✅ Ensures space is distributed */
-    margin-bottom: 20px;  /* ✅ Adds space below the navigation bar */
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    margin-bottom: 20px;
 }
 
 .letter-nav {
     display: flex;
-    flex-wrap: wrap;  /* ✅ Allows letters to wrap if needed */
+    flex-wrap: wrap;
     gap: 5px;
-    flex-grow: 1;  /* ✅ Allows letters to take up space */
+    flex-grow: 1;
 }
 
 .letter-nav a {
@@ -53,47 +53,70 @@
     margin-bottom: 5px;
 }
 
-/* ✅ Ensure the button stays on the same row */
 .all-artists-btn {
-    margin-left: auto;  /* ✅ Pushes button to the right */
-    white-space: nowrap;  /* ✅ Prevents button from wrapping */
+    margin-left: auto;
+    white-space: nowrap;
 }
 </style>
-<h2>Parcourir par artiste</h2>
 
+<!-- ✅ Dynamic Heading -->
+<h2>
+    {% if site_name == "FrancoUke" %}
+        Parcourir par artiste
+    {% else %}
+        Browse by Artist
+    {% endif %}
+</h2>
 
-<!-- ✅ Letter Navigation + Button in the Same Row -->
+<!-- ✅ Letter Navigation -->
 <div class="letter-nav-container">
     <div class="letter-nav">
         {% for letter in first_letters %}
-            <a href="{% url 'artist_by_letter' letter %}"
-               class="{% if letter == selected_letter %}active{% endif %}">
-                {{ letter }}
-            </a>
+            {% if site_name == "FrancoUke" %}
+                <a href="{% url 'francouke_artist_by_letter' letter=letter %}"
+                   class="{% if letter == selected_letter %}active{% endif %}">
+                    {{ letter }}
+                </a>
+            {% else %}
+                <a href="{% url 'strumsphere_artist_by_letter' letter=letter %}"
+                   class="{% if letter == selected_letter %}active{% endif %}">
+                    {{ letter }}
+                </a>
+            {% endif %}
         {% endfor %}
     </div>
 
     {% if selected_letter %}
-        <a href="{% url 'artist_list' %}" class="btn btn-secondary all-artists-btn">
-            Afficher tous les artistes
-        </a>
+        {% if site_name == "FrancoUke" %}
+            <a href="{% url 'francouke_artist_list' %}" class="btn btn-secondary all-artists-btn">
+                Afficher tous les artistes
+            </a>
+        {% else %}
+            <a href="{% url 'strumsphere_artist_list' %}" class="btn btn-secondary all-artists-btn">
+                Show All Artists
+            </a>
+        {% endif %}
     {% endif %}
 </div>
 
-
-<!-- ✅ Artist List in Columns -->
+<!-- ✅ Artist List -->
 <div class="artist-columns">
     {% for column in artist_columns %}
         <div class="artist-column">
             <ul>
                 {% for artist in column %}
-                    <li><a href="{% url 'artist_songs' artist %}">{{ artist }}</a></li>
+                    {% if site_name == "FrancoUke" %}
+                        <li><a href="{% url 'francouke_artist_songs' artist=artist %}">{{ artist }}</a></li>
+                    {% else %}
+                        <li><a href="{% url 'strumsphere_artist_songs' artist=artist %}">{{ artist }}</a></li>
+                    {% endif %}
                 {% endfor %}
             </ul>
         </div>
     {% endfor %}
 </div>
 {% endblock %}
+
 {% if not user.is_authenticated %}
 <script>
     document.addEventListener("DOMContentLoaded", function() {

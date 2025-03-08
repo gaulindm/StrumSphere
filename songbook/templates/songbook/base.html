@@ -14,12 +14,6 @@
       <link rel="stylesheet" type="text/css" href="{% static 'songbook/main.css' %}">
 
 
-
-
-
-
-
-
       {% if title %}
         <title>Songbook - {{ title }} </title>
       {% else %}
@@ -27,8 +21,7 @@
       {% endif%}
   </title>
 </head>
-  <body>
-
+  <body><!-- Debugging: Show site_name -->
     <header class="site-header">
       {% include "partials/_navbar.html" %}
     </header>

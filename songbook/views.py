@@ -207,11 +207,8 @@ def chord_dictionary(request):
 from django.shortcuts import render
 
 
-def home(request):
-    context = {
-        'songs':Song.objects.all()
-    }
-    return render(request, 'songbook/home.html',context)
+def home(request, site_name):
+    return render(request, 'index.html', {'site_name': site_name})
 
 class SongListView(ListView):
     model = Song
@@ -226,15 +223,19 @@ class SongListView(ListView):
             return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        """
-        Override to filter the song queryset based on search query and tag.
-        """
+        """Filter songs based on search query, tag, and site_name."""
         queryset = super().get_queryset()
+
+        # 🔹 Determine site name from URL
+        site_name = self.kwargs.get('site_name')  # Should be passed in `urls.py`
+        if site_name:
+            queryset = queryset.filter(site_name=site_name)
+
+        # Apply additional filters
         search_query = self.request.GET.get('q', '')  # Search query
         selected_tag = self.request.GET.get('tag', '')  # Selected tag
         artist_name = self.kwargs.get('artist_name')  # Get artist from URL
 
-        # Apply filters
         if search_query:
             queryset = queryset.filter(
                 Q(songTitle__icontains=search_query) |
@@ -242,11 +243,11 @@ class SongListView(ListView):
                 Q(metadata__songwriter__icontains=search_query)
             )
 
-        if selected_tag:  # Filter by tag if a tag is selected
+        if selected_tag:  
             queryset = queryset.filter(tags__name=selected_tag)
 
         if artist_name:
-            queryset = queryset.filter(metadata__artist__iexact=artist_name)  # ✅ No need to decode
+            queryset = queryset.filter(metadata__artist__iexact=artist_name)
 
         return queryset
 
@@ -259,10 +260,11 @@ class SongListView(ListView):
 
 
     def get_context_data(self, **kwargs):
-        """
-        Add filtered song data, chords, and tags to the template context.
-        """
         context = super().get_context_data(**kwargs)
+        
+        # 🔹 Ensure site_name is passed to the template
+        context['site_name'] = self.kwargs.get('site_name', 'FrancoUke')  # Default to FrancoUke
+        
         context['selected_artist'] = self.kwargs.get('artist_name')
         search_query = self.request.GET.get('q', '')
         selected_tag = self.request.GET.get('tag', '')  # Selected tag
@@ -286,9 +288,11 @@ class SongListView(ListView):
         context['search_query'] = search_query
         context['selected_tag'] = selected_tag  # Pass the selected tag
         context['all_tags'] = all_tags  # Add all tags to context
+        
         return context
 
-class UserSongListView (ListView):
+
+class UserSongListView(ListView):
     model = Song
     template_name = 'songbook/user_songs.html'
     context_object_name = 'songs'
@@ -297,7 +301,8 @@ class UserSongListView (ListView):
 
     def get_queryset(self):
         user = get_object_or_404(User, username=self.kwargs.get('username'))
-        return Song.objects.filter(contributor=user).order_by('songTitle')
+        site_name = self.kwargs.get('site_name')  # Get site name from URL
+        return Song.objects.filter(contributor=user, site_name=site_name).order_by('songTitle')
 
 
 #This is second column of home.html
@@ -311,12 +316,15 @@ class ScoreView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-                # Fetch the user's preferences
+        # Get site_name from request and add it to context
+        context["site_name"] = self.request.resolver_match.kwargs.get('site_name')
+
+        # Fetch user preferences if logged in
         if self.request.user.is_authenticated:
             preferences, created = UserPreference.objects.get_or_create(user=self.request.user)
             context["preferences"] = preferences
         else:
-            context["preferences"] = None  # Handle unauthenticated users if necessary
+            context["preferences"] = None
 
         return context
 

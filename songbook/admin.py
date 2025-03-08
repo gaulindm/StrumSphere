@@ -48,9 +48,12 @@ class SongFormattingAdmin(admin.ModelAdmin):
 
 @admin.register(Song)
 class SongAdmin(admin.ModelAdmin):
-    list_display = ['songTitle', 'get_artist', 'date_posted', 'get_year', 'get_youtube', 'get_tags']
+    list_display = ['songTitle', 'get_artist', 'date_posted', 'get_year', 'get_youtube', 'site_name','get_tags']
+    list_editable = ['site_name']
     search_fields = ['songTitle', 'metadata__artist']
     ordering = ('metadata__artist',)
+    actions = ['set_site_to_strumsphere']  # Custom action
+
 
     def get_year(self, obj):
         return obj.metadata.get('year', 'Unknown') if obj.metadata else 'No Metadata'
@@ -79,3 +82,7 @@ class SongAdmin(admin.ModelAdmin):
         return ", ".join(o for o in obj.tags.names())
     get_tags.admin_order_field = 'tags_string'  # Enable sorting by annotated field
     get_tags.short_description = 'Tags'
+
+    @admin.action(description="Set selected songs to StrumSphere")
+    def set_site_to_strumsphere(self, request, queryset):
+        queryset.update(site_name="StrumSphere")

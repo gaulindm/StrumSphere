@@ -52,9 +52,18 @@
             {% for item in song_data %}
             <tr>
                 <td>
-                    <a href="{% url 'score' item.song.id %}" class="song-link" title="{{ item.song.songTitle }}" aria-label="View score for {{ item.song.songTitle }}">
+                    {% if site_name == "FrancoUke" %}
+                        <a href="{% url 'francouke_score' item.song.id %}" class="song-link"
+                            title="{{ item.song.songTitle }}" aria-label="View score for {{ item.song.songTitle }}">
                         {{ item.song.songTitle }}
-                    </a>
+                        </a>
+                        {% else %}
+                            <a href="{% url 'strumsphere_score' item.song.id %}" class="song-link"
+                            title="{{ item.song.songTitle }}" aria-label="View score for {{ item.song.songTitle }}">
+                                {{ item.song.songTitle }}
+                            </a>
+                        {% endif %}
+
                 </td>
                 <td>{{ item.song.metadata.artist|default_if_none:"Unknown Artist" }}</td>
                 <td class="text-center">

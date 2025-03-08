@@ -11,6 +11,11 @@ from taggit.managers import TaggableManager
 
 
 class Song(models.Model):
+    SITE_CHOICES = [
+        ('FrancoUke', 'FrancoUke'),
+        ('StrumSphere', 'StrumSphere'),
+    ]
+
     songTitle = models.CharField(max_length=100, blank=True, null=True)
     songChordPro = models.TextField()  # Original
     lyrics_with_chords = models.JSONField(null=True, blank=True)
@@ -19,34 +24,28 @@ class Song(models.Model):
     date_posted = models.DateField(default=timezone.now)
     contributor = models.ForeignKey(User, on_delete=models.CASCADE)
     acknowledgement = models.CharField(max_length=100, blank=True, null=True)
-    #abc_notation = models.TextField(blank=True, null=True, help_text="Optional ABC notation for this song.")
-
+    site_name = models.CharField(max_length=20, choices=SITE_CHOICES, default='FrancoUke')  # NEW FIELD
 
     def save(self, *args, **kwargs):
-            # Check if the song exists and retrieve old data
-            if self.pk:
-                old_song = Song.objects.get(pk=self.pk)
-                if old_song.songChordPro != self.songChordPro:
-                    self.date_posted = timezone.now().date()  # Update date_posted when content changes
+        # Check if the song exists and retrieve old data
+        if self.pk:
+            old_song = Song.objects.get(pk=self.pk)
+            if old_song.songChordPro != self.songChordPro:
+                self.date_posted = timezone.now().date()  # Update date_posted when content changes
 
-            # Only parse title if songTitle is not manually set
-            if not self.songTitle:
-                self.songTitle, self.metadata = self.parse_metadata_from_chordpro()
-            else:
-                # Only update metadata
-                _, self.metadata = self.parse_metadata_from_chordpro()
+        # Only parse title if songTitle is not manually set
+        if not self.songTitle:
+            self.songTitle, self.metadata = self.parse_metadata_from_chordpro()
+        else:
+            # Only update metadata
+            _, self.metadata = self.parse_metadata_from_chordpro()
 
-            # Parse the songChordPro content of the song
-            self.lyrics_with_chords = parse_song_data(self.songChordPro)
+        # Parse the songChordPro content of the song
+        self.lyrics_with_chords = parse_song_data(self.songChordPro)
 
-            # Detect the key if not already specified
-            #if not self.metadata.get('key'):
-            #    self.metadata['key'] = detect_key(self.lyrics_with_chords)
-
-            super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
     def parse_metadata_from_chordpro(self):
-        # Regular expressions to find all relevant metadata tags
         tags = {
             "title": re.search(r'{(?:title|t):\s*([^\}]+)}', self.songChordPro, re.IGNORECASE | re.UNICODE),
             "comment": re.search(r'{(?:comment|c):\s*(.+?)}', self.songChordPro, re.IGNORECASE | re.UNICODE),
@@ -59,48 +58,37 @@ class Song(models.Model):
             "1stnote": re.search(r'{1stnote:\s*(.+?)}', self.songChordPro, re.IGNORECASE),
             "tempo": re.search(r'{tempo:\s*(.+?)}', self.songChordPro, re.IGNORECASE),
             "timeSignature": re.search(r'{timeSignature:\s*(.+?)}', self.songChordPro, re.IGNORECASE),
-            "youtube": re.search(r'{youtube:\s*(https?://[^\s\}]+)}', self.songChordPro, re.IGNORECASE),  # New tag
+            "youtube": re.search(r'{youtube:\s*(https?://[^\s\}]+)}', self.songChordPro, re.IGNORECASE),  
         }
 
-        # Extract each tag's value, or use None if not found
         metadata = {tag: match.group(1) if match else None for tag, match in tags.items()}
-
-        # Set title separately as it is also stored in songTitle
         title = metadata.pop("title", "Untitled Song")
 
         return title, metadata
 
     def __str__(self):
-        return self.songTitle or "Untitled Song"
+        return f"{self.songTitle} ({self.site_name})" if self.songTitle else f"Untitled Song ({self.site_name})"
 
     def get_absolute_url(self):
         return reverse('score', kwargs={'pk': self.pk})
 
     def get_used_chords(self):
-            """
-            Extract chord names from the song's lyrics, handling nested lists or other complex structures.
-            """
-            def flatten_lyrics(lyrics):
-                """
-                Flatten a nested list of lyrics into a single list of strings.
-                """
-                flat_list = []
-                for item in lyrics:
-                    if isinstance(item, list):
-                        flat_list.extend(flatten_lyrics(item))  # Recursively flatten nested lists
-                    elif isinstance(item, str):
-                        flat_list.append(item)  # Keep strings as-is
-                return flat_list
+        def flatten_lyrics(lyrics):
+            flat_list = []
+            for item in lyrics:
+                if isinstance(item, list):
+                    flat_list.extend(flatten_lyrics(item))
+                elif isinstance(item, str):
+                    flat_list.append(item)
+            return flat_list
 
-            # Ensure lyrics_with_chords is flattened into a single string
-            if isinstance(self.lyrics_with_chords, list):
-                flat_lyrics = flatten_lyrics(self.lyrics_with_chords)
-                lyrics_text = '\n'.join(flat_lyrics)  # Combine flat list into a single string
-            else:
-                lyrics_text = str(self.lyrics_with_chords)  # Fallback if not a list
+        if isinstance(self.lyrics_with_chords, list):
+            flat_lyrics = flatten_lyrics(self.lyrics_with_chords)
+            lyrics_text = '\n'.join(flat_lyrics)
+        else:
+            lyrics_text = str(self.lyrics_with_chords)
 
-            # Extract chord names using regex
-            return list(set(re.findall(r'\[([A-G][#b]?(maj|min|dim|aug|sus|6|7|9)?)\]', lyrics_text)))
+        return list(set(re.findall(r'\[([A-G][#b]?(maj|min|dim|aug|sus|6|7|9)?)\]', lyrics_text)))
 
 class SongFormatting(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)  # Each user gets their own formatting
