@@ -36,7 +36,12 @@ urlpatterns = [
 
     # 🔹 Song Creation, Update, and Deletion
     path('song/new/', SongCreateView.as_view(), name='song-create'),
-    path('song/<int:pk>/update/', SongUpdateView.as_view(), name='song-update'),
+    #path('song/<int:pk>/update/', SongUpdateView.as_view(), name='song-update'),
+
+    path('FrancoUke/song/<int:pk>/update/', SongUpdateView.as_view(), {'site_name': 'FrancoUke'}, name='francouke_song_update'),
+    path('StrumSphere/song/<int:pk>/update/', SongUpdateView.as_view(), {'site_name': 'StrumSphere'}, name='strumsphere_song_update'),
+
+    
     path('song/<int:pk>/delete/', SongDeleteView.as_view(), name='song-delete'),
 
     # 🔹 PDF Generation
@@ -59,7 +64,10 @@ urlpatterns = [
     path('chord-dictionary/', views.chord_dictionary, name='chord-dictionary'),
 
     # 🔹 Formatting Editor
-    path("songs/<int:song_id>/edit_formatting/", edit_song_formatting, name="edit_formatting"),
+    #path("songs/<int:song_id>/edit_formatting/", edit_song_formatting, name="edit_formatting"),
+
+    path('FrancoUke/songs/<int:song_id>/edit_formatting/',  edit_song_formatting, name="francouke_edit_formatting"),
+    path('StrumSphere/songs/<int:song_id>/edit_formatting/',  edit_song_formatting, name="strumsphere_edit_formatting"),
 
     # 🔹 Static Pages
     path('about/', views.about, name='songbook-about'),

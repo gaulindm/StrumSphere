@@ -30,18 +30,39 @@ import urllib.parse
 import logging
 
 logger = logging.getLogger(__name__)
+@login_required
+@permission_required("songbook.change_songformatting", raise_exception=True)
 
 @login_required
 @permission_required("songbook.change_songformatting", raise_exception=True)
 def edit_song_formatting(request, song_id):
-    """Edit song formatting with a fallback to Gaulind's settings if needed."""
+    """Edit song formatting with dual edition support. Uses user's formatting if available,
+    otherwise falls back to Gaulind's formatting."""
 
-    # Try to get user's formatting, or use Gaulind's as fallback
+    site_name = request.GET.get("site", "Unknown")
+    print(f"DEBUG: site_name received in view: {site_name}")
+
+    # Try to get the user's formatting or create a new one with defaults
     formatting, created = SongFormatting.objects.get_or_create(
-    user=request.user, song_id=song_id,
-    defaults={'intro': {}, 'verse': {}, 'chorus': {}, 'bridge': {}, 'interlude': {}, 'outro': {}}
-)
+        user=request.user, song_id=song_id,
+        defaults={'intro': {}, 'verse': {}, 'chorus': {}, 'bridge': {}, 'interlude': {}, 'outro': {}}
+    )
 
+
+
+
+    # 🔹 Detect site from request GET parameters (fallback to host detection)
+    site_name = request.GET.get("site")
+    if not site_name:
+        site_name = "FrancoUke" if "gaulind.pythonanywhere.com" in request.get_host() else "StrumSphere"
+
+    # Try to get the user's formatting or create a new one with defaults
+    formatting, created = SongFormatting.objects.get_or_create(
+        user=request.user, song_id=song_id,
+        defaults={'intro': {}, 'verse': {}, 'chorus': {}, 'bridge': {}, 'interlude': {}, 'outro': {}}
+    )
+
+    # If a new formatting was created, check for Gaulind's version as fallback
     if created:
         gaulind_formatting = SongFormatting.objects.filter(user__username="Gaulind", song_id=song_id).first()
         if gaulind_formatting:
@@ -53,32 +74,51 @@ def edit_song_formatting(request, song_id):
             formatting.outro = gaulind_formatting.outro
             formatting.save()
 
-    # Process the form
+    # Process form submission
     if request.method == "POST":
         form = SongFormattingForm(request.POST, instance=formatting)
         if form.is_valid():
             form.save()
             messages.success(request, "Formatting updated successfully!")
-            return redirect("score", pk=song_id)
+
+            # 🔹 Redirect to the correct site, keeping the site parameter
+            if site_name == "FrancoUke":
+                return redirect("francouke_edit_formatting", song_id=song_id)
+            else:
+                return redirect("strumsphere_edit_formatting", song_id=song_id)
+
     else:
         form = SongFormattingForm(instance=formatting)
 
-    return render(request, "songbook/edit_formatting.html", {"form": form, "pk": song_id})
+    return render(request, "songbook/edit_formatting.html", {
+        "form": form, 
+        "pk": song_id, 
+        "formatting": formatting, 
+        "site_name": site_name
+    })
+
 
 class ArtistListView(LoginRequiredMixin, ListView):
     template_name = "songbook/artist_list.html"
     context_object_name = "artists"
+
     def dispatch(self, request, *args, **kwargs):
+        """Show login modal if user is not authenticated."""
         if not request.user.is_authenticated:
             return render(request, "users/auth_modal.html", {"next_url": request.path})
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         """
-        Get unique artists and filter by first letter if provided.
+        Get unique artists for the current site and filter by first letter if provided.
         """
+        # 🔹 Get the `site_name` from the URL kwargs
+        site_name = self.kwargs.get("site_name", "FrancoUke")  # Default to FrancoUke if not provided
+
+        # 🔹 Filter only songs that belong to the current `site_name`
         queryset = (
-            Song.objects.exclude(metadata__artist__isnull=True)
+            Song.objects.filter(site_name=site_name)  # ✅ Only fetch artists from the correct site
+            .exclude(metadata__artist__isnull=True)
             .exclude(metadata__artist="")
             .annotate(artist_name=Lower(Cast("metadata__artist", CharField())))
             .values_list("metadata__artist", flat=True)
@@ -86,53 +126,51 @@ class ArtistListView(LoginRequiredMixin, ListView):
             .order_by("artist_name")
         )
 
-        # Get the letter from the URL if filtering by letter
+        # 🔹 Filter by first letter (if selected)
         letter = self.kwargs.get("letter")
-
         if letter:
-            # ✅ Ensure None values are filtered out before accessing the first character
             queryset = [artist for artist in queryset if artist and artist[0].upper() == letter.upper()]
 
         return queryset
 
-
     def get_context_data(self, **kwargs):
-        """Ensure letter navigation is always visible."""
+        """Ensure letter navigation is always visible and filter artists by site_name."""
         context = super().get_context_data(**kwargs)
 
-        # ✅ Get all unique artist names (not just filtered ones)
+        # 🔹 Get the `site_name` from the URL
+        site_name = self.kwargs.get("site_name", "FrancoUke")  # Default to FrancoUke
+
+        # 🔹 Ensure all artists are from the current `site_name`
         all_artists = (
-            Song.objects.exclude(metadata__artist__isnull=True)
+            Song.objects.filter(site_name=site_name)  # ✅ Only fetch artists from the correct site
+            .exclude(metadata__artist__isnull=True)
             .exclude(metadata__artist="")
             .annotate(artist_name=Lower(Cast("metadata__artist", CharField())))
             .values_list("metadata__artist", flat=True)
             .distinct()
         )
 
-        # ✅ Extract all first letters from all artists
+        # 🔹 Extract all first letters
         first_letters = sorted(set(artist[0].upper() for artist in all_artists if artist))
 
-        # ✅ Filtrer les artistes si une lettre est sélectionnée
+        # 🔹 Filter artists if a letter is selected
         letter = self.kwargs.get("letter")
         if letter:
             filtered_artists = sorted([artist for artist in all_artists if artist and artist[0].upper() == letter.upper()])
         else:
-            filtered_artists = sorted(all_artists)  # ✅ Toujours trier alphabétiquement
+            filtered_artists = sorted(all_artists)  # ✅ Always sort alphabetically
 
-        # ✅ Split into columns (max 20 per column)
+        # 🔹 Split artists into columns (max 20 per column)
         artists_per_column = 20
         artist_columns = [filtered_artists[i:i + artists_per_column] for i in range(0, len(filtered_artists), artists_per_column)]
 
+        # 🔹 Pass data to template
+        context["site_name"] = site_name  # ✅ Ensure `site_name` is available in the template
         context["artist_columns"] = artist_columns  # ✅ Keep artists split into columns
-        context["first_letters"] = first_letters  # ✅ Ensure letters always appear
-        context["selected_letter"] = letter  # ✅ Track selected letter
-
-        # ✅ Debugging print (Check this in PythonAnywhere error logs)
-        print("DEBUG: First Letters Passed to Template:", first_letters)
+        context["first_letters"] = first_letters  # ✅ Ensure letter navigation works
+        context["selected_letter"] = letter  # ✅ Track the selected letter
 
         return context
-
-
 
 def preview_pdf(request, song_id):
     """Generate a transposed PDF with user-defined font sizes stored in JSON fields."""
@@ -315,9 +353,9 @@ class ScoreView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        # Get site_name from request and add it to context
-        context["site_name"] = self.request.resolver_match.kwargs.get('site_name')
+        context['site_name'] = self.kwargs.get('site_name', 'FrancoUke')  # ✅ Ensure site_name exists
+        context['song'] = self.get_object()  # ✅ Ensure song is passed
+        return context
 
         # Fetch user preferences if logged in
         if self.request.user.is_authenticated:
@@ -335,39 +373,64 @@ class SongCreateView(LoginRequiredMixin, CreateView):
         form.instance.contributor = self.request.user
         return super().form_valid(form)
 
+from django.urls import reverse
+
 class SongUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Song
-    fields = ['songTitle', 'songChordPro', 'lyrics_with_chords', 'metadata','tags','acknowledgement']
-    #success_url = reverse_lazy('songbook-home')  # Redirect after success
+    fields = ['songTitle', 'songChordPro', 'lyrics_with_chords', 'metadata', 'tags', 'acknowledgement']
 
     def get_success_url(self):
-        # Redirect to the updated song's detail page
-        return reverse('score', kwargs={'pk': self.object.pk})
+        """Ensure the user is redirected to the correct site after updating."""
+        site_name = self.kwargs.get('site_name', 'FrancoUke')  # Default to FrancoUke if missing
+        if site_name == "FrancoUke":
+            return reverse('francouke_score', kwargs={'pk': self.object.pk})
+        else:
+            return reverse('strumsphere_score', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
-        # Assign the contributor to the current user
-        form.instance.contributor = self.request.user
+        """Ensure song updates respect Dual Edition logic."""
+        form.instance.contributor = self.request.user  # Assign contributor
+        
+        # 🔹 Ensure song stays in the correct site
+        site_name = self.kwargs.get('site_name', 'FrancoUke')
+        form.instance.site_name = site_name
 
-        # Parse the songChordPro field
+        # 🔹 Parse ChordPro data
         raw_lyrics = form.cleaned_data['songChordPro']
         try:
-            # Attempt to parse the songChordPro data
             parsed_lyrics = parse_song_data(raw_lyrics)
         except Exception as e:
-            # Handle errors in parsing gracefully
             form.add_error('songChordPro', f"Error parsing song data: {e}")
             return self.form_invalid(form)
 
-        # Update the lyrics_with_chords field with parsed data
         form.instance.lyrics_with_chords = parsed_lyrics
         return super().form_valid(form)
-
 
     def test_func(self):
         return self.request.user.is_authenticated
 
     def get_object(self, queryset=None):
-        return super().get_object(queryset)
+        """Ensure song updates are restricted to the correct site."""
+        song = super().get_object(queryset)
+        site_name = self.kwargs.get('site_name', 'FrancoUke')
+
+        # 🔹 Prevent users from updating a song from the wrong site
+        if song.site_name != site_name:
+            raise PermissionDenied("You cannot edit songs from another site.")
+        
+        return song
+
+    def get_context_data(self, **kwargs):
+        """Ensure `site_name` is available in the template."""
+        context = super().get_context_data(**kwargs)
+        
+        # 🔹 Extract `site_name` from the URL parameters
+        site_name = self.kwargs.get('site_name', 'FrancoUke')  # Default to FrancoUke
+        context['site_name'] = site_name  # ✅ Add `site_name` to the template context
+        
+        print(f"DEBUG: site_name in SongUpdateView = {site_name}")  # ✅ Print site_name in console
+
+        return context
 
 
 class SongDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):

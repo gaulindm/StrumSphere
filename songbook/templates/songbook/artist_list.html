@@ -106,9 +106,10 @@
             <ul>
                 {% for artist in column %}
                     {% if site_name == "FrancoUke" %}
-                        <li><a href="{% url 'francouke_artist_songs' artist=artist %}">{{ artist }}</a></li>
+                        <li><a href="{% url 'francouke_artist_songs' artist_name=artist %}">{{ artist }}</a>
+                        </li>
                     {% else %}
-                        <li><a href="{% url 'strumsphere_artist_songs' artist=artist %}">{{ artist }}</a></li>
+                        <li><a href="{% url 'strumsphere_artist_songs' artist_name=artist %}">{{ artist }}</a></li>
                     {% endif %}
                 {% endfor %}
             </ul>
