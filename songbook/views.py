@@ -30,8 +30,6 @@ import urllib.parse
 import logging
 
 logger = logging.getLogger(__name__)
-@login_required
-@permission_required("songbook.change_songformatting", raise_exception=True)
 
 @login_required
 @permission_required("songbook.change_songformatting", raise_exception=True)
@@ -39,22 +37,12 @@ def edit_song_formatting(request, song_id):
     """Edit song formatting with dual edition support. Uses user's formatting if available,
     otherwise falls back to Gaulind's formatting."""
 
-    site_name = request.GET.get("site", "Unknown")
+    # 🔹 Detect site_name from request.GET (more reliable than host detection)
+    site_name = request.GET.get("site")  
+    if not site_name:  
+        site_name = "FrancoUke"  # Default to FrancoUke if missing
+
     print(f"DEBUG: site_name received in view: {site_name}")
-
-    # Try to get the user's formatting or create a new one with defaults
-    formatting, created = SongFormatting.objects.get_or_create(
-        user=request.user, song_id=song_id,
-        defaults={'intro': {}, 'verse': {}, 'chorus': {}, 'bridge': {}, 'interlude': {}, 'outro': {}}
-    )
-
-
-
-
-    # 🔹 Detect site from request GET parameters (fallback to host detection)
-    site_name = request.GET.get("site")
-    if not site_name:
-        site_name = "FrancoUke" if "gaulind.pythonanywhere.com" in request.get_host() else "StrumSphere"
 
     # Try to get the user's formatting or create a new one with defaults
     formatting, created = SongFormatting.objects.get_or_create(
@@ -81,7 +69,7 @@ def edit_song_formatting(request, song_id):
             form.save()
             messages.success(request, "Formatting updated successfully!")
 
-            # 🔹 Redirect to the correct site, keeping the site parameter
+            # 🔹 Redirect to the correct site, keeping `site_name` in the URL
             if site_name == "FrancoUke":
                 return redirect("francouke_edit_formatting", song_id=song_id)
             else:
@@ -94,7 +82,7 @@ def edit_song_formatting(request, song_id):
         "form": form, 
         "pk": song_id, 
         "formatting": formatting, 
-        "site_name": site_name
+        "site_name": site_name  # ✅ Ensure `site_name` is passed to the template
     })
 
 
