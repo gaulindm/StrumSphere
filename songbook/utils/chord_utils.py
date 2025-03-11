@@ -189,7 +189,7 @@ def draw_footer(canvas, doc, relevant_chords, chord_spacing, row_spacing,
     else:
         rows_needed = (len(primary_diagrams) + max_chords_per_row - 1) // max_chords_per_row  # Full page
 
-    print(f"DEBUG: Number of chords={len(primary_diagrams)}, max_chords_per_row={max_chords_per_row}, rows_needed={rows_needed}")
+    #print(f"DEBUG: Number of chords={len(primary_diagrams)}, max_chords_per_row={max_chords_per_row}, rows_needed={rows_needed}")
 
 
 

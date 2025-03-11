@@ -15,13 +15,24 @@ from .views import preview_pdf
 
 #from users.views import update_preferences  # Ensure this import is correct!
 
+from django.shortcuts import redirect
+
+def redirect_to_correct_site(request):
+    """Redirect root URL to the correct song list based on hostname."""
+    if "FrancoUke" in request.get_host():
+        return redirect("francouke_songs")
+    else:
+        return redirect("strumsphere_songs")
+
 
 urlpatterns = [
     # 🔹 Homepages for each site
     #path('FrancoUke/', home, {'site_name': 'FrancoUke'}, name='francouke_home'),
     #path('StrumSphere/', home, {'site_name': 'StrumSphere'}, name='strumsphere_home'),
-    path('', SongListView.as_view(), name='songbook-home'),
+    #path('', SongListView.as_view(), name='songbook-home'),
 
+    path('', redirect_to_correct_site, name='redirect-root'),  # 🔹 Redirect root URL
+    
     # 🔹 Song List for Each Site
     path('FrancoUke/songs/', SongListView.as_view(), {'site_name': 'FrancoUke'}, name='francouke_songs'),
     path('StrumSphere/songs/', SongListView.as_view(), {'site_name': 'StrumSphere'}, name='strumsphere_songs'),
@@ -35,8 +46,13 @@ urlpatterns = [
     path('StrumSphere/song/<int:pk>/', ScoreView.as_view(), {'site_name': 'StrumSphere'}, name='strumsphere_score'),
 
     # 🔹 Song Creation, Update, and Deletion
-    path('song/new/', SongCreateView.as_view(), name='song-create'),
+    #path('song/new/', SongCreateView.as_view(), name='song-create'),
     #path('song/<int:pk>/update/', SongUpdateView.as_view(), name='song-update'),
+
+    path('FrancoUke/song/new/', SongCreateView.as_view(), {'site_name': 'FrancoUke'}, name='francouke_song_create'),
+    path('StrumSphere/song/new/', SongCreateView.as_view(), {'site_name': 'StrumSphere'}, name='strumsphere_song_create'),
+
+
 
     path('FrancoUke/song/<int:pk>/update/', SongUpdateView.as_view(), {'site_name': 'FrancoUke'}, name='francouke_song_update'),
     path('StrumSphere/song/<int:pk>/update/', SongUpdateView.as_view(), {'site_name': 'StrumSphere'}, name='strumsphere_song_update'),

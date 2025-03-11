@@ -30,27 +30,26 @@ import urllib.parse
 import logging
 
 logger = logging.getLogger(__name__)
-
 @login_required
 @permission_required("songbook.change_songformatting", raise_exception=True)
-def edit_song_formatting(request, song_id):
-    """Edit song formatting with dual edition support. Uses user's formatting if available,
-    otherwise falls back to Gaulind's formatting."""
+def edit_song_formatting(request, song_id, site_name=None):
+    """Edit song formatting with Dual Edition support."""
 
-    # 🔹 Detect site_name from request.GET (more reliable than host detection)
-    site_name = request.GET.get("site")  
-    if not site_name:  
-        site_name = "FrancoUke"  # Default to FrancoUke if missing
+    # 🔹 Ensure `site_name` is retrieved properly
+    if not site_name:
+        site_name = request.GET.get("site")  # Try getting from GET parameters
+        if not site_name:
+            site_name = "FrancoUke" if "FrancoUke" in request.path else "StrumSphere"
 
-    print(f"DEBUG: site_name received in view: {site_name}")
+    print(f"DEBUG: site_name received in view: {site_name}, Song ID: {song_id}")  # ✅ Debugging output
 
-    # Try to get the user's formatting or create a new one with defaults
+    # Retrieve or create formatting settings for the user
     formatting, created = SongFormatting.objects.get_or_create(
         user=request.user, song_id=song_id,
         defaults={'intro': {}, 'verse': {}, 'chorus': {}, 'bridge': {}, 'interlude': {}, 'outro': {}}
     )
 
-    # If a new formatting was created, check for Gaulind's version as fallback
+    # If newly created, try to copy from Gaulind's formatting
     if created:
         gaulind_formatting = SongFormatting.objects.filter(user__username="Gaulind", song_id=song_id).first()
         if gaulind_formatting:
@@ -69,21 +68,22 @@ def edit_song_formatting(request, song_id):
             form.save()
             messages.success(request, "Formatting updated successfully!")
 
-            # 🔹 Redirect to the correct site, keeping `site_name` in the URL
+            # 🔹 Redirect back to the correct ScoreView after formatting update
             if site_name == "FrancoUke":
-                return redirect("francouke_edit_formatting", song_id=song_id)
+                return redirect("francouke_score", pk=song_id)
             else:
-                return redirect("strumsphere_edit_formatting", song_id=song_id)
-
+                return redirect("strumsphere_score", pk=song_id)
     else:
         form = SongFormattingForm(instance=formatting)
 
+    # ✅ Ensure `site_name` is correctly passed to the template
     return render(request, "songbook/edit_formatting.html", {
         "form": form, 
         "pk": song_id, 
         "formatting": formatting, 
-        "site_name": site_name  # ✅ Ensure `site_name` is passed to the template
+        "site_name": site_name  # ✅ Ensure site_name is properly included in the context
     })
+
 
 
 class ArtistListView(LoginRequiredMixin, ListView):
@@ -354,14 +354,36 @@ class ScoreView(LoginRequiredMixin, DetailView):
 
         return context
 
+
+
 class SongCreateView(LoginRequiredMixin, CreateView):
     model = Song
-    fields = ['songTitle','songChordPro','metadata','tags','acknowledgement']
+    fields = ['songTitle', 'songChordPro', 'metadata', 'tags', 'acknowledgement']
+
     def form_valid(self, form):
+        """Assign the current user as the contributor and ensure site_name is set."""
         form.instance.contributor = self.request.user
+        
+        # 🔹 Ensure the song belongs to the correct site
+        site_name = self.kwargs.get('site_name', 'FrancoUke')  # Default to FrancoUke
+        form.instance.site_name = site_name
+
         return super().form_valid(form)
 
-from django.urls import reverse
+    def get_context_data(self, **kwargs):
+        """Pass `site_name` to the template to keep the correct edition."""
+        context = super().get_context_data(**kwargs)
+        context['site_name'] = self.kwargs.get('site_name', 'FrancoUke')  # Default to FrancoUke
+        return context
+
+    def get_success_url(self):
+        """Redirect to the correct song list based on the site edition."""
+        site_name = self.kwargs.get('site_name', 'FrancoUke')
+        if site_name == "FrancoUke":
+            return reverse('francouke_songs')
+        else:
+            return reverse('strumsphere_songs')
+
 
 class SongUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Song

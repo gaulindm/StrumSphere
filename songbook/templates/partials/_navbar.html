@@ -43,71 +43,40 @@
 <!-- 🔹 User Authentication Section -->
 <div class="navbar-nav ms-auto">
   {% if user.is_authenticated %}
-    <div class="nav-item dropdown">
-      <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        {% if site_name == "FrancoUke" %}
-          Bonjour, {{ user.username }}
-        {% else %}
-          Welcome, {{ user.username }}
-        {% endif %}
-      </a>
-      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-        <li>
-          <a class="dropdown-item" href="#">
-            {% if site_name == "FrancoUke" %}
-              Nom: {{ user.first_name }} {{ user.last_name }}
-            {% else %}
-              Name: {{ user.first_name }} {{ user.last_name }}
-            {% endif %}
+      <div class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Welcome, {{ user.username }}
           </a>
-        </li>
-        <li>
-          <a class="dropdown-item" href="{% url 'song-create' %}">
-            {% if site_name == "FrancoUke" %}
-              🎶 Ajouter une chanson
-            {% else %}
-              🎶 New Song
-            {% endif %}
-          </a>
-        </li>
-        <li>
-          <a class="dropdown-item" href="{% url 'users:user_preferences' %}">
-            {% if site_name == "FrancoUke" %}
-              ⚙️ Préférences utilisateur
-            {% else %}
-              ⚙️ User Preferences
-            {% endif %}
-          </a>
-        </li>
-        <li><hr class="dropdown-divider"></li>
-        <li>
-          <a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-            {% if site_name == "FrancoUke" %}
-              🚪 Déconnexion
-            {% else %}
-              🚪 Logout
-            {% endif %}
-          </a>
-        </li>
-      </ul>
-    </div>
-    <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
-      {% csrf_token %}
-    </form>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li><a class="dropdown-item" href="#">Name: {{ user.first_name }} {{ user.last_name }}</a></li>
+              
+              {% if site_name == "FrancoUke" %}
+                  <li><a class="dropdown-item" href="{% url 'francouke_song_create' %}">Créer une chanson</a></li>
+                  <li><a class="dropdown-item" href="{% url 'users:user_preferences' %}">Préférences utilisateur</a></li>
+              {% else %}
+                  <li><a class="dropdown-item" href="{% url 'strumsphere_song_create' %}">New Song</a></li>
+                  <li><a class="dropdown-item" href="{% url 'users:user_preferences' %}">User Preferences</a></li>
+              {% endif %}
+              
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                  <a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                      Logout
+                  </a>
+              </li>
+          </ul>
+      </div>
+      <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
+          {% csrf_token %}
+      </form>
   {% else %}
-    <a class="nav-item nav-link" href="{% url 'login' %}">
       {% if site_name == "FrancoUke" %}
-        🔑 Connexion
+          <a class="nav-item nav-link" href="{% url 'login' %}?site=FrancoUke">Connexion</a>
+          <a class="nav-item nav-link" href="{% url 'register' %}?site=FrancoUke">S'inscrire</a>
       {% else %}
-        🔑 Login
+          <a class="nav-item nav-link" href="{% url 'login' %}?site=StrumSphere">Login</a>
+          <a class="nav-item nav-link" href="{% url 'register' %}?site=StrumSphere">Sign Up</a>
       {% endif %}
-    </a>
-    <a class="nav-item nav-link" href="{% url 'register' %}">
-      {% if site_name == "FrancoUke" %}
-        ✍️ S'inscrire
-      {% else %}
-        ✍️ Register
-      {% endif %}
-    </a>
   {% endif %}
 </div>
+

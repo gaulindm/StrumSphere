@@ -12,5 +12,7 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(template_name='users/login.html'), name='login'),
     #path('update_preferences/', update_preferences, name='update_preferences'),
     path('preferences/', user_preferences_view, name='user_preferences'),
+
+    
     path('logout/', auth_views.LogoutView.as_view(template_name='users/logout.html'), name='logout'),
 ]
