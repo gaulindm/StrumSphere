@@ -1,52 +1,22 @@
-<!-- Bootstrap Modal for User Preferences -->
-<div class="modal fade" id="userPreferencesModal" tabindex="-1" aria-labelledby="userPreferencesLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="userPreferencesLabel">User Preferences</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-  
-        <form method="post" id="userPreferencesForm">
-          <div class="modal-body">
-            {% csrf_token %}
-  
-            <!-- Primary Instrument -->
-            <div class="mb-3">
-              <label for="id_primary_instrument" class="form-label">Primary Instrument:</label>
-              {{ form.primary_instrument }}
-            </div>
-  
-            <!-- Secondary Instrument -->
-            <div class="mb-3">
-              <label for="id_secondary_instrument" class="form-label">Secondary Instrument (Optional):</label>
-              {{ form.secondary_instrument }}
-            </div>
-  
-            <!-- Left-Handed Option -->
-            <div class="mb-3">
-              <label for="id_is_lefty" class="form-label">Are you left-handed?</label>
-              {{ form.is_lefty }}
-            </div>
-  
-            <!-- Show Alternate Chords -->
-            <div class="mb-3">
-              <label for="id_is_printing_alternate_chord" class="form-label">Show Alternate Chords?</label>
-              {{ form.is_printing_alternate_chord }}
-            </div>
-          </div>
-  
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="submit" class="btn btn-primary">Save Preferences</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Button to Trigger Modal -->
-  <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#userPreferencesModal">
-    🎸 Edit Preferences
-  </button>
-  
+{% extends "songbook/base.html" %}
+
+{% block content %}
+<h2>User Preferences</h2>
+<form method="post">
+    {% csrf_token %}
+
+    <label for="id_primary_instrument">Primary Instrument:</label>
+    {{ form.primary_instrument }}
+
+    <label for="id_secondary_instrument">Secondary Instrument (Optional):</label>
+    {{ form.secondary_instrument }}
+
+    <label for="id_is_lefty">Are you left-handed?</label>
+    {{ form.is_lefty }}
+
+    <label for="id_is_printing_alternate_chord">Show Alternate Chords?</label>
+    {{ form.is_printing_alternate_chord }}
+
+    <button type="submit">Save Preferences</button>
+</form>
+{% endblock %}

@@ -11,10 +11,8 @@ urlpatterns = [
     #path('profile/', views.profile, name='profile'),
     path('login/', auth_views.LoginView.as_view(template_name='users/login.html'), name='login'),
     #path('update_preferences/', update_preferences, name='update_preferences'),
-    #path('preferences/', user_preferences_view, name='user_preferences'),
-    path('preferences/', user_preferences_view, name='user_preferences'),  # ✅ Add user preferences path
+    path('preferences/', user_preferences_view, name='user_preferences'),
 
-#    path('FrancoUke/preferences/', user_preferences_view, {'site_name': 'FrancoUke'}, name='francouke_user_preferences'),
- #   path('StrumSphere/preferences/', user_preferences_view, {'site_name': 'StrumSphere'}, name='strumsphere_user_preferences'),
+    
     path('logout/', auth_views.LogoutView.as_view(template_name='users/logout.html'), name='logout'),
 ]
