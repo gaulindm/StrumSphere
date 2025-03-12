@@ -16,6 +16,7 @@ from .views import preview_pdf
 #from users.views import update_preferences  # Ensure this import is correct!
 
 from django.shortcuts import redirect
+from django.urls import path
 
 def redirect_to_correct_site(request):
     """Redirect root URL to the correct song list based on hostname."""
@@ -30,6 +31,7 @@ urlpatterns = [
     #path('FrancoUke/', home, {'site_name': 'FrancoUke'}, name='francouke_home'),
     #path('StrumSphere/', home, {'site_name': 'StrumSphere'}, name='strumsphere_home'),
     #path('', SongListView.as_view(), name='songbook-home'),
+    
 
     path('', redirect_to_correct_site, name='redirect-root'),  # 🔹 Redirect root URL
     

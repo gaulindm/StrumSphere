@@ -29,32 +29,14 @@ def register(request):
 
 @login_required
 def user_preferences_view(request):
-    user_pref, created = UserPreference.objects.get_or_create(user=request.user)  # Get or create a preference instance
-
+    user_pref, created = UserPreference.objects.get_or_create(user=request.user)
+    
     if request.method == "POST":
         form = UserPreferenceForm(request.POST, instance=user_pref)
         if form.is_valid():
             form.save()
-            return redirect("/")  # Redirect to song list
+            return redirect("/")  # Redirect after saving preferences
     else:
-        form = UserPreferenceForm(instance=user_pref)  # Populate form with current user preferences
+        form = UserPreferenceForm(instance=user_pref)
 
-    return render(request, "users/user_preference_form.html", {"form": form})
-
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
-from django.contrib.auth.decorators import login_required
-from .models import UserPreference
-
-#@login_required
-#def update_preferences(request):
-#    if request.method == "POST":
-#        preferences = get_object_or_404(UserPreference, user=request.user)
-
-        # ✅ Update Global Font Size
-#        preferences.font_size = request.POST.get("font_size", preferences.font_size)
-#        preferences.save()
-
-#        return JsonResponse({"status": "success", "font_size": preferences.font_size})
-
-#    return JsonResponse({"status": "error", "message": "Invalid request"})
+    return render(request, "base.html", {"form": form})  # ✅ Ensure form is in context

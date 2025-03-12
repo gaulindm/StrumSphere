@@ -16,6 +16,19 @@ class UserPreferenceForm(forms.ModelForm):
         model = UserPreference
         fields = ['primary_instrument', 'secondary_instrument', 'is_lefty', 'is_printing_alternate_chord']
 
+
+    def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+            # ✅ Add Bootstrap styles to dropdowns
+            self.fields['primary_instrument'].widget.attrs.update({'class': 'form-select'})
+            self.fields['secondary_instrument'].widget.attrs.update({'class': 'form-select'})
+
+            # ✅ Add Bootstrap styles to checkboxes
+            self.fields['is_lefty'].widget.attrs.update({'class': 'form-check-input'})
+            self.fields['is_printing_alternate_chord'].widget.attrs.update({'class': 'form-check-input'})
+
+
     def clean(self):
         cleaned_data = super().clean()
         primary = cleaned_data.get("primary_instrument")

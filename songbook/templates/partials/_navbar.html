@@ -52,10 +52,18 @@
               
               {% if site_name == "FrancoUke" %}
                   <li><a class="dropdown-item" href="{% url 'francouke_song_create' %}">Créer une chanson</a></li>
-                  <li><a class="dropdown-item" href="{% url 'users:user_preferences' %}">Préférences utilisateur</a></li>
+                  <li>
+                    <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#userPreferencesModal">
+                      ⚙️ Preferences
+                    </button>
+                    </li>
               {% else %}
                   <li><a class="dropdown-item" href="{% url 'strumsphere_song_create' %}">New Song</a></li>
-                  <li><a class="dropdown-item" href="{% url 'users:user_preferences' %}">User Preferences</a></li>
+                  <li>
+                    <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#userPreferencesModal">
+                      ⚙️ Preferences
+                    </button>
+              </li>
               {% endif %}
               
               <li><hr class="dropdown-divider"></li>
