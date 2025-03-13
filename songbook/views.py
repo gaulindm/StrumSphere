@@ -225,12 +225,19 @@ def get_chord_definition(request, chord_name):
             return JsonResponse({"success": True, "chord": chord})
     return JsonResponse({"success": False, "error": f"Chord '{chord_name}' not found."})
 
-def chord_dictionary(request):
+from django.shortcuts import render
+
+def chord_dictionary(request, site_name="FrancoUke"):
+    """Load chord data and adapt for FrancoUke or StrumSphere."""
     instruments = ["ukulele", "guitar", "mandolin", "banjo", "baritone_ukulele"]
     chord_data = {instrument: load_chords(instrument) for instrument in instruments}
-    return render(request, "songbook/allChordsTable.html", {"chord_data": chord_data})
 
-from django.shortcuts import render
+    return render(
+        request, 
+        "songbook/allChordsTable.html", 
+        {"chord_data": chord_data, "site_name": site_name}
+    )
+
 
 
 def home(request, site_name):
@@ -452,8 +459,10 @@ class SongDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return self.request.user == song.contributor
 
 
-def about(request):
-    return render (request, 'songbook/about.html',{'title':about})
+def about(request, site_name="FrancoUke"):
+    """Render the About page with site-specific content."""
+    return render(request, "songbook/about.html", {"site_name": site_name})
 
-def betabugs(request):
-    return render (request, 'songbook/betabugs.html',{'title':betabugs})
+def whats_new(request, site_name=None):
+    """Render the 'What's New' page with dual edition support."""
+    return render(request, 'songbook/whats_new.html', {'site_name': site_name})

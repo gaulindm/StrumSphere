@@ -26,15 +26,15 @@
         {% if site_name == "FrancoUke" %}
           <a class="nav-item nav-link" href="{% url 'francouke_songs' %}">Partitions</a>
           <a class="nav-item nav-link" href="{% url 'francouke_artist_list' %}">Artistes</a>
-          <a class="nav-item nav-link" href="{% url 'chord-dictionary' %}">Dictionnaire d'accord</a>
-          <a class="nav-item nav-link" href="{% url 'songbook-about' %}">À propos</a>
-          <a class="nav-item nav-link" href="{% url 'songbook-betabugs' %}">En développement</a>
+          <a class="nav-item nav-link" href="{% url 'francouke_chord_dictionary' %}">Dictionnaire d'accord</a>
+          <a class="nav-item nav-link" href="{% url 'francouke_about' %}">À propos</a>
+          <a class="nav-item nav-link" href="{% url 'francouke_whats_new' %}">En développement</a>
         {% else %}
           <a class="nav-item nav-link" href="{% url 'strumsphere_songs' %}">Songs</a>
           <a class="nav-item nav-link" href="{% url 'strumsphere_artist_list' %}">Artists</a>
-          <a class="nav-item nav-link" href="{% url 'chord-dictionary' %}">Chord Dictionary</a>
-          <a class="nav-item nav-link" href="{% url 'songbook-about' %}">About Us</a>
-          <a class="nav-item nav-link" href="{% url 'songbook-betabugs' %}">Under Development</a>
+          <a class="nav-item nav-link" href="{% url 'strumsphere_chord_dictionary' %}">Chord Dictionary</a>
+          <a class="nav-item nav-link" href="{% url 'strumsphere_about' %}">About Us</a>
+          <a class="nav-item nav-link" href="{% url 'strumsphere_whats_new' %}">Under Development</a>
         {% endif %}
         
 

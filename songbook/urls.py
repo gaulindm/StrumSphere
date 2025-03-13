@@ -77,7 +77,9 @@ urlpatterns = [
     path('StrumSphere/artists/<str:artist_name>/', SongListView.as_view(), {'site_name': 'StrumSphere'}, name='strumsphere_artist_songs'),
 
     # 🔹 Chord Dictionary
-    path('chord-dictionary/', views.chord_dictionary, name='chord-dictionary'),
+    #path('chord-dictionary/', views.chord_dictionary, name='chord-dictionary'),
+    path('FrancoUke/chord-dictionary/', views.chord_dictionary, {'site_name': 'FrancoUke'}, name='francouke_chord_dictionary'),
+    path('StrumSphere/chord-dictionary/', views.chord_dictionary, {'site_name': 'StrumSphere'}, name='strumsphere_chord_dictionary'),
 
     # 🔹 Formatting Editor
     #path("songs/<int:song_id>/edit_formatting/", edit_song_formatting, name="edit_formatting"),
@@ -86,6 +88,12 @@ urlpatterns = [
     path('StrumSphere/songs/<int:song_id>/edit_formatting/',  edit_song_formatting, name="strumsphere_edit_formatting"),
 
     # 🔹 Static Pages
-    path('about/', views.about, name='songbook-about'),
-    path('betabugs/', views.betabugs, name='songbook-betabugs'),
+    #path('about/', views.about, name='songbook-about'),
+    path('FrancoUke/about/', views.about, {'site_name': 'FrancoUke'}, name='francouke_about'),
+    path('StrumSphere/about/', views.about, {'site_name': 'StrumSphere'}, name='strumsphere_about'),
+
+
+    #path('FrancoUke/whats_new', views.betabugs, name='songbook-betabugs'),
+    path('FrancoUke/whats-new/', views.whats_new, {'site_name': 'FrancoUke'}, name='francouke_whats_new'),
+    path('StrumSphere/whats-new/', views.whats_new, {'site_name': 'StrumSphere'}, name='strumsphere_whats_new'),
 ]
