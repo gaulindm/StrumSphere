@@ -5,7 +5,6 @@ from django.db.models.functions import Concat
 from .models import Song, SongFormatting
 from django import forms
 
-
 # Custom admin form to show JSON fields as editable text areas
 class SongFormattingAdminForm(forms.ModelForm):
     class Meta:
@@ -41,48 +40,34 @@ class SongFormattingAdmin(admin.ModelAdmin):
         return obj.chorus.get("font_size", "Default") if obj.chorus else "Default"
     display_chorus_font_size.short_description = "Chorus Font Size"
 
-
-
-
-
-
+# ✅ Single Admin Panel with Filtering by Site Name
 @admin.register(Song)
 class SongAdmin(admin.ModelAdmin):
-    list_display = ['songTitle', 'get_artist', 'date_posted', 'get_year', 'get_youtube', 'site_name','get_tags']
+    list_display = ['songTitle', 'get_artist', 'date_posted', 'get_year', 'get_youtube', 'site_name', 'get_tags']
     list_editable = ['site_name']
     search_fields = ['songTitle', 'metadata__artist']
     ordering = ('metadata__artist',)
-    actions = ['set_site_to_strumsphere']  # Custom action
+    list_filter = ['site_name']  # ✅ Admin panel filter to separate FrancoUke & StrumSphere
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.annotate(
+            tags_string=Concat('tags__name', Value(', '))
+        )
 
     def get_year(self, obj):
         return obj.metadata.get('year', 'Unknown') if obj.metadata else 'No Metadata'
-    get_year.admin_order_field = 'metadata__year'
     get_year.short_description = 'Year'
 
     def get_youtube(self, obj):
         youtube_url = obj.metadata.get('youtube', '') if obj.metadata else ''
         return format_html('<a href="{}" target="_blank">{}</a>', youtube_url, youtube_url) if youtube_url else 'No Metadata'
-    get_youtube.admin_order_field = 'metadata__youtube'
     get_youtube.short_description = 'YouTube'
 
     def get_artist(self, obj):
         return obj.metadata.get('artist', 'Unknown') if obj.metadata else ''
-    get_artist.admin_order_field = 'metadata__artist'
     get_artist.short_description = 'Artist'
 
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        # Annotate tags into a single string for sorting
-        return queryset.annotate(
-            tags_string=Concat('tags__name', Value(', '))  # Adjust for your field structure
-        )
-
     def get_tags(self, obj):
-        return ", ".join(o for o in obj.tags.names())
-    get_tags.admin_order_field = 'tags_string'  # Enable sorting by annotated field
+        return ", ".join(obj.tags.names())
     get_tags.short_description = 'Tags'
-
-    @admin.action(description="Set selected songs to StrumSphere")
-    def set_site_to_strumsphere(self, request, queryset):
-        queryset.update(site_name="StrumSphere")

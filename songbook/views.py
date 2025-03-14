@@ -296,32 +296,35 @@ class SongListView(ListView):
         context = super().get_context_data(**kwargs)
         
         # 🔹 Ensure site_name is passed to the template
-        context['site_name'] = self.kwargs.get('site_name', 'FrancoUke')  # Default to FrancoUke
+        site_name = self.kwargs.get('site_name', 'FrancoUke')
+        context['site_name'] = site_name
         
         context['selected_artist'] = self.kwargs.get('artist_name')
         search_query = self.request.GET.get('q', '')
-        selected_tag = self.request.GET.get('tag', '')  # Selected tag
-        song_data = []
+        selected_tag = self.request.GET.get('tag', '')
 
-        # Build song data with chords and tags
+        # 🔹 Get filtered songs based on site
+        site_songs = Song.objects.filter(site_name=site_name)
+        
+        # 🔹 Extract only the relevant tags for the current site
+        all_tags = Tag.objects.filter(song__in=site_songs).distinct().values_list('name', flat=True)
+
+        song_data = []
         for song in context['songs']:
             parsed_data = song.lyrics_with_chords or ""
             chords = extract_chords(parsed_data, unique=True) if parsed_data else []
-            tags = [tag.name for tag in song.tags.all()]  # Get tags for each song
+            tags = [tag.name for tag in song.tags.all()]
             song_data.append({
                 'song': song,
                 'chords': ', '.join(chords),
                 'tags': ', '.join(tags),
             })
 
-        # Fetch all unique tags and add them to the context
-        all_tags = Tag.objects.all().values_list('name', flat=True).distinct()
-
         context['song_data'] = song_data
         context['search_query'] = search_query
-        context['selected_tag'] = selected_tag  # Pass the selected tag
-        context['all_tags'] = all_tags  # Add all tags to context
-        
+        context['selected_tag'] = selected_tag
+        context['all_tags'] = all_tags  # ✅ Pass the filtered tags only
+
         return context
 
 
