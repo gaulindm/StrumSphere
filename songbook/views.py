@@ -264,6 +264,12 @@ class SongListView(ListView):
         if site_name:
             queryset = queryset.filter(site_name=site_name)
 
+        # ✅ Apply filter for formatted songs
+        if self.request.GET.get("formatted") == "1":
+            queryset = queryset.filter(songformatting__isnull=False)  # ✅ Check if formatting exists
+
+
+
         # Apply additional filters
         search_query = self.request.GET.get('q', '')  # Search query
         selected_tag = self.request.GET.get('tag', '')  # Selected tag
@@ -309,16 +315,29 @@ class SongListView(ListView):
         # 🔹 Extract only the relevant tags for the current site
         all_tags = Tag.objects.filter(song__in=site_songs).distinct().values_list('name', flat=True)
 
+        # ✅ Filtering by formatted/unformatted songs
+        show_formatted = self.request.GET.get('formatted') == 'true'  # Check filter parameter
+        show_unformatted = self.request.GET.get('formatted') == 'false'
+
+
+
         song_data = []
         for song in context['songs']:
             parsed_data = song.lyrics_with_chords or ""
             chords = extract_chords(parsed_data, unique=True) if parsed_data else []
             tags = [tag.name for tag in song.tags.all()]
+
+            # ✅ Check if the song has been formatted
+            is_formatted = SongFormatting.objects.filter(song=song).exists()
+
             song_data.append({
                 'song': song,
                 'chords': ', '.join(chords),
                 'tags': ', '.join(tags),
+                'is_formatted': is_formatted,
             })
+
+
 
         context['song_data'] = song_data
         context['search_query'] = search_query

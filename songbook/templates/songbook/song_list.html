@@ -18,6 +18,19 @@
                 {% endif %}
             </div>
         </div>
+        <div class="col-md-3">
+            <label>Filter:</label>
+            <a href="?formatted=1" class="btn btn-outline-secondary btn-sm">Show Formatted Songs</a>
+            
+            
+
+            {% if site_name|lower == "francouke" %}
+                <a href="{% url 'francouke_songs' %}" class="btn btn-danger btn-sm">Clear Filter</a>
+            {% else %}
+                <a href="{% url 'strumsphere_songs' %}" class="btn btn-danger btn-sm">Clear Filter</a>
+            {% endif %}
+        </div>
+        
 
         <!-- Tags Section -->
         <div class="col-md-9">
@@ -63,6 +76,7 @@
             <tr>
                 {% if site_name == "FrancoUke" %}
                     <th>Partitions</th>
+                    <th>Status</th>
                     <th>Interprètes</th>
                     <th>Année</th>
                     <th>Balises</th>
@@ -70,6 +84,7 @@
                     <th class="text-center">Actions</th> <!-- Add Actions column -->
                 {% else %}
                     <th>Songs</th>
+                    <th>Status</th>
                     <th>Artists</th>
                     <th>Year</th>
                     <th>Tags</th>
@@ -95,6 +110,15 @@
                         {% endif %}
 
                 </td>
+                <td>
+                    {% if item.is_formatted %}
+                        ✅
+                    {% else %}
+                        ❌
+                    {% endif %}
+                </td>
+
+
                 <td>{{ item.song.metadata.artist|default_if_none:"Unknown Artist" }}</td>
                 <td class="text-center">
                     {{ item.song.metadata.year|default_if_none:"" }}
