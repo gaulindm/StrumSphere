@@ -73,17 +73,17 @@
               </li>
           </ul>
       </div>
-      <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
+      <form id="logout-form" action="{% url 'users:logout' %}" method="post" style="display: none;">
           {% csrf_token %}
       </form>
   {% else %}
-      {% if site_name == "FrancoUke" %}
-          <a class="nav-item nav-link" href="{% url 'login' %}?site=FrancoUke">Connexion</a>
-          <a class="nav-item nav-link" href="{% url 'register' %}?site=FrancoUke">S'inscrire</a>
-      {% else %}
-          <a class="nav-item nav-link" href="{% url 'login' %}?site=StrumSphere">Login</a>
-          <a class="nav-item nav-link" href="{% url 'register' %}?site=StrumSphere">Sign Up</a>
-      {% endif %}
+  {% if site_name == "FrancoUke" %}
+  <a class="nav-item nav-link" href="{% url 'users:login' %}?site=FrancoUke">Connexion</a>
+  <a class="nav-item nav-link" href="{% url 'users:register' %}?site=FrancoUke">S'inscrire</a>
+{% else %}
+  <a class="nav-item nav-link" href="{% url 'users:login' %}?site=StrumSphere">Login</a>
+  <a class="nav-item nav-link" href="{% url 'users:register' %}?site=StrumSphere">Sign Up</a>
+{% endif %}
   {% endif %}
 </div>
 

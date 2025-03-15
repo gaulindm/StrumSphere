@@ -11,8 +11,8 @@
         <p>Vous devez être authentifié pour accéder la page <strong>{{ request.path }}</strong>.</p>
       </div>
       <div class="modal-footer">
-        <a href="{% url 'login' %}?next={{ next_url }}" class="btn btn-primary">Login</a>
-        <a href="{% url 'register' %}" class="btn btn-secondary">S'inscire</a>
+        <a href="{% url 'users:login' %}?next={{ next_url }}" class="btn btn-primary">Login</a>
+        <a href="{% url 'users:register' %}" class="btn btn-secondary">S'inscire</a>
       </div>
     </div>
   </div>
