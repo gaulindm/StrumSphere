@@ -182,7 +182,15 @@ def preview_pdf(request, song_id):
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="{song.songTitle}_preview.pdf"'
 
-    generate_songs_pdf(response, [song], user, transpose_value, formatting)
+    # 🔍 Debug request.GET
+    print(f"DEBUG: request.GET (query parameters) → {request.GET}")  
+
+    # ✅ Read site_name from query params correctly
+    site_name = request.GET.get("site_name", "FrancoUke")  # Fallback to FrancoUke if missing
+
+    print(f"DEBUG: Determined site_name → {site_name}")
+
+    generate_songs_pdf(response, [song], user, 0, None, site_name=site_name)
     return response
 
 
@@ -191,7 +199,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
+#For the action button
 def generate_pdf_response(filename, songs, user=None):
     """Reusable function to generate and return a PDF response."""
     response = HttpResponse(content_type='application/pdf')
@@ -370,18 +378,29 @@ class ScoreView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['site_name'] = self.kwargs.get('site_name', 'FrancoUke')  # ✅ Ensure site_name exists
-        context['song'] = self.get_object()  # ✅ Ensure song is passed
-        return context
 
-        # Fetch user preferences if logged in
+        # ✅ Determine site_name from request.path (not kwargs)
+        if "FrancoUke" in self.request.path:
+            context['site_name'] = "FrancoUke"
+        elif "StrumSphere" in self.request.path:
+            context['site_name'] = "StrumSphere"
+        else:
+            context['site_name'] = "FrancoUke"  # Default fallback
+
+        # ✅ Ensure song object is available
+        context['song'] = self.get_object()
+
+        # ✅ Fetch user preferences if logged in
         if self.request.user.is_authenticated:
             preferences, created = UserPreference.objects.get_or_create(user=self.request.user)
             context["preferences"] = preferences
         else:
             context["preferences"] = None
 
-        return context
+        print(f"DEBUG: site_name in context → {context['site_name']}")  # 🔍 Debugging output
+
+        return context  # ✅ Return context at the end
+
 
 
 

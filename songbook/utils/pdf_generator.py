@@ -28,11 +28,11 @@ def get_user_preferences(user):
     user_preferences = getattr(user, "userpreference", None)
     if not user_preferences:
         raise ValueError("User preferences not found")
-    
+
     primary_instrument = user_preferences.primary_instrument
     if not primary_instrument:
         raise ValueError("Primary instrument not found in user preferences")
-    
+
     return {
         "primary_instrument": primary_instrument,
         "secondary_instrument": getattr(user_preferences, "secondary_instrument", None),
@@ -85,7 +85,9 @@ def get_paragraph_styles(formatting):
     }
 
 
-def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None):
+def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None, site_name="FrancoUke"):
+    print(f"DEBUG: site_name received → {site_name}")  # ✅ Check if site_name is correct
+
     # Calculate diagram rows for bottom margin adjustment
     def calculate_diagram_rows(chords, max_chords_per_row=8):
         return (len(chords) + max_chords_per_row - 1) // max_chords_per_row
@@ -117,7 +119,7 @@ def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None
     styles_dict = get_paragraph_styles(formatting)
 
     for song in songs:
-        elements.extend(build_song_elements(song, styles, styles_dict))
+        elements.extend(build_song_elements(song, styles, styles_dict, site_name))  # ✅ Pass site_name correctly
         elements.append(PageBreak())
 
     doc.build(
@@ -127,9 +129,12 @@ def generate_songs_pdf(response, songs, user, transpose_value=0, formatting=None
     )
 
 
-def build_song_elements(song, styles, styles_dict):
+def build_song_elements(song, styles, styles_dict,site_name):
     elements = []
     metadata = song.metadata or {}
+
+    print(f"DEBUG: site_name inside build_song_elements → {site_name}")
+
 
     songwriter_style = ParagraphStyle(
         'SongwriterStyle',
@@ -152,34 +157,66 @@ def build_song_elements(song, styles, styles_dict):
     first_vocal_note_style = ParagraphStyle(
         'FirstVocalNoteStyle',
         parent=styles['Normal'],  # Inherit from the Normal style
-        alignment=2,  # Right-aligned text
+        #alignment=2,  # Right-aligned text
         fontSize=12,  # Optional: Adjust the font size
         spaceBefore=6,  # Optional: Add space above the paragraph
         spaceAfter=6,  # Optional: Add space below the paragraph
     )
 
-    recorded_by_text = f"{metadata.get('recording', 'Unknown')} au clip par {metadata.get('artist', 'Unknown Artist')}"
-        #if metadata.get('album', ''):
-        #    recorded_by_text += f" on {metadata['album']}"
+    capo_value = metadata.get('capo')
+
+    # Convert capo_value to an integer if possible, or check for "Based"
+    if isinstance(capo_value, str) and capo_value.lower() == "based":
+        capo_text = "Based on clip"
+    else:
+        try:
+            capo_value = int(capo_value)
+        except (TypeError, ValueError):
+            capo_value = 0
+
+        if site_name == "FrancoUke":
+            capo_text = f"Capo ({capo_value}) pour correspondre" if capo_value > 0 else "Correspond"
+        else:
+            capo_text = f"Capo ({capo_value}) to match" if capo_value > 0 else "Matches recording"
+
+
+    #recorded_by_text = f"{capo_text} au clip par {metadata.get('artist', 'Unknown Artist')}"
+    if site_name == "FrancoUke":
+        recorded_by_text = f"{capo_text} au clip par {metadata.get('artist', 'Artiste Inconnu')}"
+    else:
+        recorded_by_text = f"{capo_text} in the recording by {metadata.get('artist', 'Unknown Artist')}"
+
+
     if metadata.get('year', ''):
-        recorded_by_text += f" en {metadata['year']}"
+        if site_name == "FrancoUke":
+            recorded_by_text += f" en {metadata['year']}"
+        else:
+            recorded_by_text += f" in {metadata['year']}"
+
 
 
 
     header_data = [
-        [
-            Paragraph(f"{metadata.get('timeSignature', '')}", styles['Normal']),
-            Paragraph(f"<b>{song.songTitle or 'Untitled Song'}</b>", styles['Title']),
-            Paragraph(f"1e note vocale: {metadata['1stnote']}", first_vocal_note_style) if metadata.get('1stnote') else Paragraph("", first_vocal_note_style),
-        ],
-        [Paragraph(f"{metadata.get('songwriter', '')}", songwriter_style), "", "",],
-        [Paragraph(recorded_by_text, recording_style), "", "",],
-    ]
+    [
+        Paragraph(f"{metadata.get('timeSignature', '')}", styles['Normal']),
+        Paragraph(f"<b>{song.songTitle or ('Chanson sans titre' if site_name == 'FrancoUke' else 'Untitled Song')}</b>", styles['Title']),
+        Paragraph(f"(/=one strum)", styles['Normal']),
+    ],
+    [
+        Paragraph(
+            f"{'1e note vocale' if site_name == 'FrancoUke' else 'First vocal note'}: {metadata['1stnote']}",
+            first_vocal_note_style
+        ) if metadata.get('1stnote') else Paragraph("", first_vocal_note_style),
+        Paragraph(f"{metadata.get('songwriter', '')}", songwriter_style), "",],
+    
+    [Paragraph(recorded_by_text, recording_style), "", "",],
+]
+
 
 
     header_table = Table(header_data, colWidths=[110, 380, 110])
     header_table.setStyle(TableStyle([
-            ('SPAN', (0, 1), (2, 1)),  # Merge all three cells in the second row
+            #('SPAN', (0, 1), (2, 1)),  # Merge all three cells in the second row
             ('SPAN', (0, 2), (2, 2)),  # Merge all three cells in the third row
             ('TOPPADDING', (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
@@ -194,38 +231,58 @@ def build_song_elements(song, styles, styles_dict):
             #('GRID', (0, 0), (-1, -1), 1, colors.black),  # Add grid lines for debugging
     ]))
     elements.append(header_table)
+    lyrics_elements = build_lyrics_elements(song.lyrics_with_chords, styles_dict, styles['BodyText'], site_name)
 
-    lyrics_elements = build_lyrics_elements(song.lyrics_with_chords, styles_dict, styles['BodyText'])
+    #    lyrics_elements = build_lyrics_elements(song.lyrics_with_chords, styles_dict, styles['BodyText'])
     elements.extend(lyrics_elements)
 
     return elements
 
-
-def build_lyrics_elements(lyrics_with_chords, styles_dict, base_style):
+def build_lyrics_elements(lyrics_with_chords, styles_dict, base_style, site_name):
     elements = []
     paragraph_buffer = []
     section_type = None
 
+    # ✅ Select correct directive_map based on site_name
     directive_map = {
-        "{soi}": "Intro",
-        "{soc}": "Refrain",
-        "{sov}": "Verse",
-        "{sob}": "Bridge",
-        "{soo}": "Outro",
-        "{sod}": "Interlude",
-        "{eoi}": None,
-        "{eoc}": None,
-        "{eov}": None,
-        "{eob}": None,
-        "{eoo}": None,
-        "{eod}": None
+        "FrancoUke": {
+            "{soi}": "Introduction",
+            "{soc}": "Refrain",
+            "{sov}": "Couplet",
+            "{sob}": "Pont",
+            "{soo}": "Outro",
+            "{sod}": "Interlude",
+            "{eoi}": None,
+            "{eoc}": None,
+            "{eov}": None,
+            "{eob}": None,
+            "{eoo}": None,
+            "{eod}": None
+        },
+        "StrumSphere": {
+            "{soi}": "Intro",
+            "{soc}": "Chorus",
+            "{sov}": "Verse",
+            "{sob}": "Bridge",
+            "{soo}": "Outro",
+            "{sod}": "Interlude",
+            "{eoi}": None,
+            "{eoc}": None,
+            "{eov}": None,
+            "{eob}": None,
+            "{eoo}": None,
+            "{eod}": None
+        }
     }
+
+    # Get the correct dictionary based on site_name (default to English)
+    selected_directive_map = directive_map.get(site_name, directive_map["StrumSphere"])
 
     for group in lyrics_with_chords:
         for item in group:
             if "directive" in item:
                 directive = item["directive"].lower()
-                if directive in directive_map:
+                if directive in selected_directive_map:
                     if paragraph_buffer:
                         paragraph_text = " ".join(paragraph_buffer)
                         style = styles_dict.get(section_type.lower(), styles_dict["verse"]) if section_type else styles_dict["verse"]
@@ -237,15 +294,13 @@ def build_lyrics_elements(lyrics_with_chords, styles_dict, base_style):
                             section_table.setStyle(TableStyle([
                                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                                ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Add grid lines for debugging
-                                #('BOX', (0, 0), (-1, -1), 0.5, colors.grey)
                             ]))
                             elements.append(section_table)
                         else:
                             # Verses as simple paragraphs
                             elements.append(Paragraph(paragraph_text, style))
                         paragraph_buffer = []
-                    section_type = directive_map[directive]
+                    section_type = selected_directive_map[directive]
                     continue
             elif "lyric" in item:
                 chord = item.get("chord", "")

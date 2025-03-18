@@ -3,13 +3,17 @@
 
 {% block content %}
     <div class="row g-0"> 
+        <p>DEBUG: iframe src → <span id="iframe-debug"></span></p>
+
         <!-- Print Preview -->
         <div class="col-md-8 col-12 p-2 bg-light d-flex justify-content-center align-items-center">
-            <iframe id="pdf-preview" src="{% url 'preview_pdf' score.id %}" 
-                    width="100%" 
-                    height="80%" 
-                    style="border: none; min-height: 90vh;">
+            <iframe id="pdf-preview" 
+                src="{% url 'preview_pdf' score.id %}?site_name={{ site_name }}" 
+                width="100%" 
+                height="80%" 
+                style="border: none; min-height: 90vh;">
             </iframe>
+    
         </div>
 
         <!-- Control Panel -->
@@ -17,4 +21,7 @@
             {% include "partials/_control_panel.html" %}
         </div>
     </div>
+    <script>
+        document.getElementById("iframe-debug").innerText = document.getElementById("pdf-preview").src;
+    </script>
 {% endblock %}
