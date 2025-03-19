@@ -218,10 +218,23 @@ def generate_multi_song_pdf(request):
 
 @login_required
 def generate_single_song_pdf(request, song_id):
-    """Generates a PDF for a single song."""
+    """Generate a PDF for a single song, adapting to the site edition."""
     song = get_object_or_404(Song, pk=song_id)
+    user = request.user
 
-    return generate_pdf_response(song.songTitle, [song], request.user)
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{song.songTitle}.pdf"'
+
+    # ✅ Fix: Get site_name from query parameters
+    site_name = request.GET.get("site_name", "FrancoUke")  # Default to FrancoUke if missing
+
+    print(f"DEBUG: request.GET → {request.GET}")  # 🔍 Check query parameters
+    print(f"DEBUG: Determined site_name → {site_name}")
+
+    # ✅ Ensure PDF generation respects `site_name`
+    generate_songs_pdf(response, [song], user, transpose_value=0, formatting=None, site_name=site_name)
+
+    return response
 
 def get_chord_definition(request, chord_name):
     """

@@ -140,12 +140,13 @@
 
                 </td>
                 <td class="text-center">
-                    <a href="{% url 'generate_single_song_pdf' item.song.id %}"
+                    <a href="{% url 'generate_single_song_pdf' item.song.id %}?site_name={{ site_name }}"
                        class="btn {% if site_name == 'FrancoUke' %}btn-success{% else %}btn-primary{% endif %} btn-sm btn-compact"
                        title="{% if site_name == 'FrancoUke' %}Télécharger PDF pour {{ item.song.songTitle }}{% else %}Download PDF for {{ item.song.songTitle }}{% endif %}">
                         PDF
                     </a>
                 </td>
+                
             </tr>
             {% empty %}
             <tr>
