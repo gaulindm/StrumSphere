@@ -194,23 +194,38 @@ def build_song_elements(song, styles, styles_dict,site_name):
             recorded_by_text += f" in {metadata['year']}"
 
 
+    def contains_slash_chord(lyrics_with_chords):
+        """ Checks if any chord in the song contains a '/' """
+        used_chords = extract_used_chords(lyrics_with_chords)
+        return any('/' in chord for chord in used_chords)
 
+    # Check if the song contains a slash chord
+    has_slash_chord = contains_slash_chord(song.lyrics_with_chords)
+
+    def format_chord_display(chord_name):
+        """ Returns the chord name if it contains '/', otherwise returns an empty string. """
+        return chord_name if '/' in chord_name else ""
 
     header_data = [
-    [
-        Paragraph(f"{metadata.get('timeSignature', '')}", styles['Normal']),
-        Paragraph(f"<b>{song.songTitle or ('Chanson sans titre' if site_name == 'FrancoUke' else 'Untitled Song')}</b>", styles['Title']),
-        Paragraph(f"(/=one strum)", styles['Normal']),
-    ],
-    [
-        Paragraph(
-            f"{'1e note vocale' if site_name == 'FrancoUke' else 'First vocal note'}: {metadata['1stnote']}",
-            first_vocal_note_style
-        ) if metadata.get('1stnote') else Paragraph("", first_vocal_note_style),
-        Paragraph(f"{metadata.get('songwriter', '')}", songwriter_style), "",],
-    
-    [Paragraph(recorded_by_text, recording_style), "", "",],
-]
+        [
+            Paragraph(metadata.get('timeSignature', '') if metadata.get('timeSignature') else "", styles['Normal']),  
+            Paragraph(f"<b>{song.songTitle or ('Chanson sans titre' if site_name == 'FrancoUke' else 'Untitled Song')}</b>", styles['Title']),
+            Paragraph("(/=one strum)", styles['Normal']) if has_slash_chord else Paragraph("", styles['Normal']),  # Only show if needed
+        ],
+        [
+            Paragraph(
+                f"{'1e note vocale' if site_name == 'FrancoUke' else 'First vocal note'}: {metadata['1stnote']}",
+                first_vocal_note_style
+            ) if metadata.get('1stnote') else Paragraph("", first_vocal_note_style),
+            Paragraph(f"{metadata.get('songwriter', '')}", songwriter_style), "",
+        ],
+        [
+            Paragraph(recorded_by_text, recording_style), 
+            Paragraph(format_chord_display(metadata.get('chord', ''))),  # Show chord only if it has '/'
+            "",
+        ],
+    ]
+
 
 
 
