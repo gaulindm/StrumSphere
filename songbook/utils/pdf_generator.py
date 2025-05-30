@@ -51,8 +51,9 @@ def load_relevant_chords(songs, user_prefs, transpose_value):
         chord["instrument"] = user_prefs["secondary_instrument"]
 
     all_chords = chords_primary + chords_secondary
-    used_chords = [normalize_chord(chord) for chord in extract_used_chords(songs[0].lyrics_with_chords)]
-    transposed_chords = {transpose_chord(chord, transpose_value) for chord in used_chords}
+    used_chords = [normalize_chord(chord).strip() for chord in extract_used_chords(songs[0].lyrics_with_chords)]
+    transposed_chords = {transpose_chord(chord.strip(), transpose_value).strip() for chord in used_chords}
+
 
     return [chord for chord in all_chords if chord["name"].lower() in map(str.lower, transposed_chords)]
 
@@ -299,7 +300,7 @@ def build_lyrics_elements(lyrics_with_chords, styles_dict, base_style, site_name
                 directive = item["directive"].lower()
                 if directive in selected_directive_map:
                     if paragraph_buffer:
-                        paragraph_text = " ".join(paragraph_buffer)
+                        paragraph_text = "".join(paragraph_buffer)
                         style = styles_dict.get(section_type.lower(), styles_dict["verse"]) if section_type else styles_dict["verse"]
                         if section_type and section_type.lower() != "verse":
                             # Non-verse sections in a table with section name
@@ -320,13 +321,32 @@ def build_lyrics_elements(lyrics_with_chords, styles_dict, base_style, site_name
             elif "lyric" in item:
                 chord = item.get("chord", "")
                 lyric = item["lyric"]
-                line = f"<b>[{chord}]</b> {lyric}" if chord else lyric
+
+        
+                if chord:
+                    if lyric.startswith("-"):
+                        # Chord is inside a hyphenated word — no space before
+                        line = f"<b>[{chord}]</b>{lyric}"
+                    elif lyric[:1].isalpha():
+                        if paragraph_buffer and paragraph_buffer[-1].endswith("-"):
+                            # No space before chord if previous content ends in hyphen
+                            line = f"<b>[{chord}]</b>{lyric}"
+                        else:
+                            # Otherwise, it's a new word — space before chord
+                            line = f" <b>[{chord}]</b>{lyric}"
+
+                    else:
+                        # Default case — no space
+                        line = f"<b>[{chord}]</b>{lyric}"
+                else:
+                    line = lyric
                 paragraph_buffer.append(line)
+
             elif "format" in item and item["format"] == "LINEBREAK":
                 paragraph_buffer.append("<br/>")
 
     if paragraph_buffer:
-        paragraph_text = " ".join(paragraph_buffer)
+        paragraph_text = "".join(paragraph_buffer)
         style = styles_dict.get(section_type.lower(), styles_dict["verse"]) if section_type else styles_dict["verse"]
         if section_type and section_type.lower() != "verse":
             section_table = Table([

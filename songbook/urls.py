@@ -22,7 +22,8 @@ def redirect_to_correct_site(request):
     if "FrancoUke" in request.get_host():
         return redirect("francouke_songs")
     else:
-        return redirect("strumsphere_songs")
+        return redirect("francouke_songs")
+#       return redirect("strumsphere_songs")
 
 
 urlpatterns = [
