@@ -8,7 +8,7 @@ import json
 from .parsers import parse_song_data  # Import the parse_song_data function
 from .utils.transposer import detect_key
 from taggit.managers import TaggableManager
-
+from django.conf import settings
 
 class Song(models.Model):
     SITE_CHOICES = [
@@ -22,7 +22,7 @@ class Song(models.Model):
     tags = TaggableManager(blank=True)
     metadata = models.JSONField(blank=True, null=True)  # Stores metadata as JSON
     date_posted = models.DateField(default=timezone.now)
-    contributor = models.ForeignKey(User, on_delete=models.CASCADE)
+    contributor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     acknowledgement = models.CharField(max_length=100, blank=True, null=True)
     site_name = models.CharField(max_length=20, choices=SITE_CHOICES, default='FrancoUke')  # NEW FIELD
 
@@ -91,7 +91,7 @@ class Song(models.Model):
         return list(set(re.findall(r'\[([A-G][#b]?(maj|min|dim|aug|sus|6|7|9)?)\]', lyrics_text)))
 
 class SongFormatting(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)  # Each user gets their own formatting
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     song = models.ForeignKey('Song', on_delete=models.CASCADE)  # Link to the song
 
     # Store formatting settings for each section as JSON

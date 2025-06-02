@@ -46,3 +46,31 @@ Implements a mix of CBVs and FBVs:
 - **Dynamic Metadata Extraction**: Parses ChordPro content for structured metadata.
 - **User-Contributed Content**: Integrated with Django’s `User` model.
 - **Tagging**: Via `TaggableManager` for song classification.
+
+
+### Temporarily disabled StrumSphere
+The StrumSphere site routes have been temporarily disabled to prioritize and promote the FrancoUke experience. This change is fully reversible and has been implemented without removing core logic.
+
+Implementation Details:
+- A custom middleware (DisableStrumSphereMiddleware) was added at songbook/core/middleware/disable_strumsphere.py.
+- All requests starting with /StrumSphere/ now return a custom 403 Forbidden page using the strumsphere_disabled.html template.
+- Existing logic, models, and view functions remain intact for future reactivation.
+- Template located at songbook/templates/songbook/strumsphere_disabled.html.
+
+Reactivation Guide:
+- Remove or comment out the middleware reference in MIDDLEWARE inside settings.py.
+- Optionally adjust routing or toggle logic for staged reintroduction. 
+- Ref: Disabling Strumsphere on francouke@gmail.com account of chatgpt
+
+
+
+
+## Affichage des accords amélioré dans les paroles hyphénées (mai 2025)
+
+Le moteur de rendu PDF a été mis à jour pour respecter les règles typographiques musicales liées aux changements d'accords au sein des paroles.
+
+- Les accords placés au début d’un mot sont précédés d’un espace
+- Les accords insérés en milieu de mot (ex. "Ba-tail-[F]leur") ne génèrent plus d’espace avant
+- Les traits d’union sont respectés pour la séparation des syllabes, ce qui permet un alignement propre et naturel des accords sur les paroles
+
+Ces améliorations permettent une lecture plus fluide et une expérience fidèle à celle des partitions vocales.
